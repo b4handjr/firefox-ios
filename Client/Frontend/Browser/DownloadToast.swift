@@ -21,7 +21,7 @@ class DownloadToast: Toast {
     }
 
     private var imageView: UIImageView = .build { imageView in
-        imageView.image = UIImage.templateImageNamed(ImageIdentifiers.Large.download)
+        imageView.image = UIImage.templateImageNamed(StandardImageIdentifiers.Large.download)
     }
 
     private var labelStackView: UIStackView = .build { stackView in
@@ -31,19 +31,19 @@ class DownloadToast: Toast {
     }
 
     private var titleLabel: UILabel = .build { label in
-        label.font = DynamicFontHelper.defaultHelper.preferredBoldFont(withTextStyle: .body,
-                                                                       size: ButtonToast.UX.titleFontSize)
+        label.font = DefaultDynamicFontHelper.preferredBoldFont(withTextStyle: .body,
+                                                                size: ButtonToast.UX.titleFontSize)
         label.numberOfLines = 0
     }
 
     private var descriptionLabel: UILabel = .build { label in
-        label.font = DynamicFontHelper.defaultHelper.preferredBoldFont(withTextStyle: .body,
-                                                                       size: ButtonToast.UX.descriptionFontSize)
+        label.font = DefaultDynamicFontHelper.preferredBoldFont(withTextStyle: .body,
+                                                                size: ButtonToast.UX.descriptionFontSize)
         label.numberOfLines = 0
     }
 
     private lazy var closeButton: UIButton = .build { button in
-        button.setImage(UIImage.templateImageNamed(ImageIdentifiers.Medium.cross), for: [])
+        button.setImage(UIImage.templateImageNamed(StandardImageIdentifiers.Medium.cross), for: [])
         button.addTarget(self, action: #selector(self.buttonPressed), for: .touchUpInside)
     }
 

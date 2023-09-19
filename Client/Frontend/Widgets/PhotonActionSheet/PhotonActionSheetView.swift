@@ -10,7 +10,6 @@ import Shared
 // MARK: - PhotonActionSheetViewDelegate
 protocol PhotonActionSheetViewDelegate: AnyObject {
     func didClick(item: SingleActionViewModel?)
-    func layoutChanged(item: SingleActionViewModel)
 }
 
 // This is the view contained in PhotonActionSheetContainerCell in the PhotonActionSheet table view.
@@ -56,14 +55,14 @@ class PhotonActionSheetView: UIView, UIGestureRecognizerDelegate, ThemeApplicabl
         label.numberOfLines = 0
         label.lineBreakMode = .byWordWrapping
         label.setContentCompressionResistancePriority(.required, for: .horizontal)
-        label.font = DynamicFontHelper.defaultHelper.LargeSizeRegularWeightAS
+        label.font = LegacyDynamicFontHelper.defaultHelper.LargeSizeRegularWeightAS
         return label
     }()
 
     private lazy var subtitleLabel: UILabel = {
         let label = createLabel()
         label.numberOfLines = 0
-        label.font = DynamicFontHelper.defaultHelper.SmallSizeRegularWeightAS
+        label.font = LegacyDynamicFontHelper.defaultHelper.SmallSizeRegularWeightAS
         return label
     }()
 
@@ -87,7 +86,7 @@ class PhotonActionSheetView: UIView, UIGestureRecognizerDelegate, ThemeApplicabl
 
     private lazy var disclosureIndicator: UIImageView = {
         let disclosureIndicator = createIconImageView()
-        disclosureIndicator.image = UIImage(named: ImageIdentifiers.Large.chevronRight)?.withRenderingMode(.alwaysTemplate)
+        disclosureIndicator.image = UIImage(named: StandardImageIdentifiers.Large.chevronRight)?.withRenderingMode(.alwaysTemplate)
         return disclosureIndicator
     }()
 
@@ -178,21 +177,6 @@ class PhotonActionSheetView: UIView, UIGestureRecognizerDelegate, ThemeApplicabl
 
     // MARK: Setup
 
-    override func layoutSublayers(of layer: CALayer) {
-        super.layoutSublayers(of: layer)
-
-        // The layout changes when there's multiple items in a row,
-        // and there's not enough space in one row to show the labels without truncating
-        if let item = item,
-           item.multipleItemsSetup.isMultiItems,
-           item.multipleItemsSetup.axis != .vertical,
-           titleLabel.isTruncated {
-            // Disabling this multipleItemsSetup feature for now - will rework to improve
-//            item.multipleItemsSetup.axis = .vertical
-//            delegate?.layoutChanged(item: item)
-        }
-    }
-
     func configure(with item: SingleActionViewModel, theme: Theme) {
         self.item = item
         setupViews()
@@ -200,10 +184,10 @@ class PhotonActionSheetView: UIView, UIGestureRecognizerDelegate, ThemeApplicabl
         titleLabel.text = item.currentTitle
 
         if item.bold {
-            titleLabel.font = DynamicFontHelper.defaultHelper.preferredBoldFont(withTextStyle: .headline,
-                                                                                size: 19)
+            titleLabel.font = DefaultDynamicFontHelper.preferredBoldFont(withTextStyle: .headline,
+                                                                         size: 19)
         } else {
-            titleLabel.font = DynamicFontHelper.defaultHelper.SemiMediumRegularWeightAS
+            titleLabel.font = LegacyDynamicFontHelper.defaultHelper.SemiMediumRegularWeightAS
         }
 
         item.customRender?(titleLabel, self)
@@ -328,14 +312,13 @@ class PhotonActionSheetView: UIView, UIGestureRecognizerDelegate, ThemeApplicabl
             statusIcon.layer.cornerRadius = PhotonActionSheet.UX.iconSize.width / 2
             statusIcon.image = image
             if let actionIconUrl = action.iconURL {
-                GeneralizedImageFetcher().getImageFor(
-                    url: actionIconUrl) { image in
-                        guard let image = image else { return }
+                GeneralizedImageFetcher().getImageFor( url: actionIconUrl) { image in
+                    guard let image = image else { return }
 
-                        self.statusIcon.image = image.createScaled(PhotonActionSheet.UX.iconSize)
-                            .withRenderingMode(.alwaysOriginal)
-                        self.statusIcon.layer.cornerRadius = PhotonActionSheet.UX.iconSize.width / 2
-                    }
+                    self.statusIcon.image = image.createScaled(PhotonActionSheet.UX.iconSize)
+                        .withRenderingMode(.alwaysOriginal)
+                    self.statusIcon.layer.cornerRadius = PhotonActionSheet.UX.iconSize.width / 2
+                }
             }
         case .TabsButton:
             tabsLabel.text = action.tabCount

@@ -10,37 +10,28 @@ import UIKit
 /// An enum describing the featureID of all features found in Nimbus.
 /// Please add new features alphabetically.
 enum NimbusFeatureFlagID: String, CaseIterable {
-    case autopushFeature
     case bottomSearchBar
     case contextualHintForToolbar
-    case coordinatorsRefactor
+    case credentialAutofillCoordinatorRefactor
     case creditCardAutofillStatus
-    case engagementNotificationStatus
     case etpCoordinatorRefactor
+    case fakespotFeature
     case historyHighlights
     case historyGroups
     case inactiveTabs
     case jumpBackIn
-    case jumpBackInSyncedTab
     case libraryCoordinatorRefactor
-    case notificationSettings
-    case onboardingUpgrade
-    case onboardingFreshInstall
     case pocket
-    case pullToRefresh
+    case feltPrivacyUI
     case recentlySaved
     case reduxIntegration
     case reportSiteIssue
     case searchHighlights
-    case settingsCoordinatorRefactor
-    case shakeToRestore
     case shareExtensionCoordinatorRefactor
     case shareSheetChanges
     case shareToolbarChanges
-    case sponsoredTiles
     case startAtHome
-    case tabStorageRefactor
-    case tabTrayGroups
+    case tabTrayRefactor
     case topSites
     case wallpapers
     case wallpaperOnboardingSheet
@@ -65,8 +56,6 @@ struct NimbusFlaggableFeature: HasNimbusSearchBar {
         typealias FlagKeys = PrefsKeys.FeatureFlags
 
         switch featureID {
-        case .autopushFeature:
-            return FlagKeys.AutopushFeature
         case .bottomSearchBar:
             return FlagKeys.SearchBarPosition
         case .historyHighlights:
@@ -79,16 +68,10 @@ struct NimbusFlaggableFeature: HasNimbusSearchBar {
             return FlagKeys.JumpBackInSection
         case .pocket:
             return FlagKeys.ASPocketStories
-        case .pullToRefresh:
-            return FlagKeys.PullToRefresh
         case .recentlySaved:
             return FlagKeys.RecentlySavedSection
-        case .sponsoredTiles:
-            return FlagKeys.SponsoredShortcuts
         case .startAtHome:
             return FlagKeys.StartAtHome
-        case .tabTrayGroups:
-            return FlagKeys.TabTrayGroups
         case .topSites:
             return FlagKeys.TopSiteSection
         case .wallpapers:
@@ -96,24 +79,19 @@ struct NimbusFlaggableFeature: HasNimbusSearchBar {
 
         // Cases where users do not have the option to manipulate a setting.
         case .contextualHintForToolbar,
-                .coordinatorsRefactor,
                 .creditCardAutofillStatus,
-                .engagementNotificationStatus,
+                .credentialAutofillCoordinatorRefactor,
                 .etpCoordinatorRefactor,
-                .jumpBackInSyncedTab,
+                .fakespotFeature,
                 .libraryCoordinatorRefactor,
-                .notificationSettings,
-                .onboardingUpgrade,
-                .onboardingFreshInstall,
                 .reduxIntegration,
                 .reportSiteIssue,
+                .feltPrivacyUI,
                 .searchHighlights,
-                .settingsCoordinatorRefactor,
-                .shakeToRestore,
                 .shareExtensionCoordinatorRefactor,
                 .shareSheetChanges,
                 .shareToolbarChanges,
-                .tabStorageRefactor,
+                .tabTrayRefactor,
                 .wallpaperOnboardingSheet,
                 .wallpaperVersion,
                 .zoomFeature:

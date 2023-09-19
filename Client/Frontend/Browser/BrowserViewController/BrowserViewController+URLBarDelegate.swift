@@ -7,6 +7,7 @@ import Storage
 import Telemetry
 import Glean
 import Common
+import ComponentLibrary
 
 protocol OnViewDismissable: AnyObject {
     var onViewDismissed: (() -> Void)? { get set }
@@ -31,16 +32,21 @@ class DismissableNavigationViewController: UINavigationController, OnViewDismiss
 
 extension BrowserViewController: URLBarDelegate {
     func showTabTray(withFocusOnUnselectedTab tabToFocus: Tab? = nil,
-                     focusedSegment: TabTrayViewModel.Segment? = nil) {
+                     focusedSegment: LegacyTabTrayViewModel.Segment? = nil) {
         updateFindInPageVisibility(visible: false)
 
-        self.tabTrayViewController = TabTrayViewController(
-            tabTrayDelegate: self,
-            profile: profile,
-            tabToFocus: tabToFocus,
-            tabManager: tabManager,
-            overlayManager: overlayManager,
-            focusedSegment: focusedSegment)
+        // TODO: FXIOS-7355 Move logic to BrowserCoordinator
+        if isTabTrayRefactorEnabled {
+            self.tabTrayViewController = TabTrayViewController()
+        } else {
+            self.tabTrayViewController = LegacyTabTrayViewController(
+                tabTrayDelegate: self,
+                profile: profile,
+                tabToFocus: tabToFocus,
+                tabManager: tabManager,
+                overlayManager: overlayManager,
+                focusedSegment: focusedSegment)
+        }
 
         tabTrayViewController?.openInNewTab = { url, isPrivate in
             let tab = self.tabManager.addTab(URLRequest(url: url), afterTab: self.tabManager.selectedTab, isPrivate: isPrivate)
@@ -97,7 +103,7 @@ extension BrowserViewController: URLBarDelegate {
                 navigationHandler?.showShareExtension(
                     url: tabUrl,
                     sourceView: shareView,
-                    toastContainer: alertContainer,
+                    toastContainer: contentContainer,
                     popoverArrowDirection: isBottomSearchBar ? .down : .up)
             } else {
                 presentShareSheet(tabUrl,
@@ -109,6 +115,12 @@ extension BrowserViewController: URLBarDelegate {
         }
     }
 
+    func urlBarDidPressShopping(_ urlBar: URLBarView, shoppingButton: UIButton) {
+        guard let productURL = urlBar.currentURL else { return }
+        TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .shoppingButton)
+        navigationHandler?.showFakespotFlow(productURL: productURL)
+    }
+
     func urlBarDidPressQRButton(_ urlBar: URLBarView) {
         let qrCodeViewController = QRCodeViewController()
         qrCodeViewController.qrCodeDelegate = self
@@ -117,33 +129,29 @@ extension BrowserViewController: URLBarDelegate {
     }
 
     func urlBarDidTapShield(_ urlBar: URLBarView) {
-         guard let tab = self.tabManager.selectedTab,
-               let url = tab.url,
-               let contentBlocker = tab.contentBlocker,
-               let webView = tab.webView else { return }
+        guard let tab = self.tabManager.selectedTab,
+              let url = tab.url,
+              let contentBlocker = tab.contentBlocker,
+              let webView = tab.webView else { return }
 
-         let etpViewModel = EnhancedTrackingProtectionMenuVM(
-             url: url,
-             displayTitle: tab.displayTitle,
-             connectionSecure: webView.hasOnlySecureContent,
-             globalETPIsEnabled: FirefoxTabContentBlocker.isTrackingProtectionEnabled(prefs: profile.prefs),
-             contentBlockerStatus: contentBlocker.status)
-         etpViewModel.onOpenSettingsTapped = {
-             if CoordinatorFlagManager.isSettingsCoordinatorEnabled {
-                 // Wait to show settings in async dispatch since hamburger menu is still showing at that time
-                 DispatchQueue.main.async {
-                     self.navigationHandler?.show(settings: .contentBlocker)
-                 }
-             } else {
-                 self.legacyShowSettings(deeplink: .contentBlocker)
-             }
-         }
-         etpViewModel.onToggleSiteSafelistStatus = { tab.reload() }
+        let etpViewModel = EnhancedTrackingProtectionMenuVM(
+            url: url,
+            displayTitle: tab.displayTitle,
+            connectionSecure: webView.hasOnlySecureContent,
+            globalETPIsEnabled: FirefoxTabContentBlocker.isTrackingProtectionEnabled(prefs: profile.prefs),
+            contentBlockerStatus: contentBlocker.status)
+        etpViewModel.onOpenSettingsTapped = { [weak self] in
+            // Wait to show settings in async dispatch since hamburger menu is still showing at that time
+            DispatchQueue.main.async {
+                self?.navigationHandler?.show(settings: .contentBlocker)
+            }
+        }
+        etpViewModel.onToggleSiteSafelistStatus = { tab.reload() }
 
         TelemetryWrapper.recordEvent(category: .action, method: .press, object: .trackingProtectionMenu)
         if CoordinatorFlagManager.isEtpCoordinatorEnabled {
             DispatchQueue.main.async {
-                self.navigationHandler?.showEnhancedTrackingProtection()
+                self.navigationHandler?.showEnhancedTrackingProtection(sourceView: urlBar.locationView.trackingProtectionButton)
             }
         } else {
             self.legacyShowEnhancedTrackingProtection(viewModel: etpViewModel)
@@ -164,24 +172,6 @@ extension BrowserViewController: URLBarDelegate {
         }
 
         self.present(etpVC, animated: true, completion: nil)
-    }
-
-    // Will be removed with FXIOS-6529
-    func legacyShowSettings(deeplink: AppSettingsDeeplinkOption?) {
-        let settingsTableViewController = AppSettingsTableViewController(
-            with: self.profile,
-            and: self.tabManager,
-            delegate: self,
-            deeplinkingTo: deeplink)
-
-        let controller = ThemedNavigationController(rootViewController: settingsTableViewController)
-        controller.presentingModalViewControllerDelegate = self
-
-        // Wait to present VC in an async dispatch queue to prevent a case where dismissal
-        // of this popover on iPad seems to block the presentation of the modal VC.
-        DispatchQueue.main.async {
-            self.present(controller, animated: true, completion: nil)
-        }
     }
 
     func urlBarDidPressStop(_ urlBar: URLBarView) {
@@ -223,7 +213,7 @@ extension BrowserViewController: URLBarDelegate {
         case .success:
             UIAccessibility.post(notification: UIAccessibility.Notification.announcement, argument: String.ReaderModeAddPageSuccessAcessibilityLabel)
             SimpleToast().showAlertWithText(.ShareAddToReadingListDone,
-                                            bottomContainer: alertContainer,
+                                            bottomContainer: contentContainer,
                                             theme: themeManager.currentTheme)
         case .failure:
             UIAccessibility.post(notification: UIAccessibility.Notification.announcement, argument: String.ReaderModeAddPageMaybeExistsErrorAccessibilityLabel)
@@ -266,7 +256,7 @@ extension BrowserViewController: URLBarDelegate {
     }
 
     func urlBarDidLongPressLocation(_ urlBar: URLBarView) {
-        let urlActions = self.getLongPressLocationBarActions(with: urlBar, alertContainer: alertContainer)
+        let urlActions = self.getLongPressLocationBarActions(with: urlBar, alertContainer: contentContainer)
         let generator = UIImpactFeedbackGenerator(style: .heavy)
         generator.impactOccurred()
 
@@ -278,10 +268,7 @@ extension BrowserViewController: URLBarDelegate {
 
     func urlBarDidPressScrollToTop(_ urlBar: URLBarView) {
         guard let selectedTab = tabManager.selectedTab else { return }
-        if CoordinatorFlagManager.isCoordinatorEnabled, !contentContainer.hasHomepage {
-            // Only scroll to top if we are not showing the home view controller
-            selectedTab.webView?.scrollView.setContentOffset(CGPoint.zero, animated: true)
-        } else if homepageViewController == nil {
+        if !contentContainer.hasHomepage {
             // Only scroll to top if we are not showing the home view controller
             selectedTab.webView?.scrollView.setContentOffset(CGPoint.zero, animated: true)
         }
@@ -381,11 +368,7 @@ extension BrowserViewController: URLBarDelegate {
                 toast.removeFromSuperview()
             }
 
-            if !CoordinatorFlagManager.isCoordinatorEnabled {
-                showHomepage(inline: false)
-            } else {
-                showEmbeddedHomepage(inline: false)
-            }
+            showEmbeddedHomepage(inline: false)
         }
 
         urlBar.applyTheme(theme: themeManager.currentTheme)

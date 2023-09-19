@@ -6,48 +6,6 @@ import Common
 import UIKit
 import Shared
 
-// Will be clean up with FXIOS-6529
-enum AppSettingsDeeplinkOption {
-    case contentBlocker
-    case customizeHomepage
-    case customizeTabs
-    case customizeToolbar
-    case customizeTopSites
-    case wallpaper
-    case creditCard
-    case fxa
-    case mailto
-    case newTab
-    case search
-
-    func getSettingsRoute() -> Route.SettingsSection {
-        switch self {
-        case .contentBlocker:
-            return .contentBlocker
-        case .customizeHomepage:
-            return .homePage
-        case .customizeTabs:
-            return .tabs
-        case .customizeToolbar:
-            return .toolbar
-        case .customizeTopSites:
-            return .topSites
-        case .wallpaper:
-            return .wallpaper
-        case .creditCard:
-            return .creditCard
-        case .fxa:
-            return .fxa
-        case .mailto:
-            return .mailto
-        case .newTab:
-            return .newTab
-        case .search:
-            return .search
-        }
-    }
-}
-
 /// Supports decision making from VC to parent coordinator
 protocol SettingsFlowDelegate: AnyObject,
                                GeneralSettingsDelegate,
@@ -78,7 +36,6 @@ class AppSettingsTableViewController: SettingsTableViewController,
                                       SearchBarLocationProvider,
                                       SharedSettingsDelegate {
     // MARK: - Properties
-    var deeplinkTo: AppSettingsDeeplinkOption? // Will be clean up with FXIOS-6529
     private var showDebugSettings = false
     private var debugSettingsClickCount: Int = 0
     private var appAuthenticator: AppAuthenticationProtocol
@@ -89,10 +46,8 @@ class AppSettingsTableViewController: SettingsTableViewController,
     init(with profile: Profile,
          and tabManager: TabManager,
          delegate: SettingsDelegate? = nil,
-         deeplinkingTo destination: AppSettingsDeeplinkOption? = nil,
          appAuthenticator: AppAuthenticationProtocol = AppAuthenticator(),
          applicationHelper: ApplicationHelper = DefaultApplicationHelper()) {
-        self.deeplinkTo = destination
         self.appAuthenticator = appAuthenticator
         self.applicationHelper = applicationHelper
 
@@ -100,6 +55,7 @@ class AppSettingsTableViewController: SettingsTableViewController,
         self.profile = profile
         self.tabManager = tabManager
         self.settingsDelegate = delegate
+        setupNavigationBar()
     }
 
     required init?(coder aDecoder: NSCoder) {
@@ -110,25 +66,9 @@ class AppSettingsTableViewController: SettingsTableViewController,
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        navigationItem.title = String.AppSettingsTitle
-        if CoordinatorFlagManager.isSettingsCoordinatorEnabled {
-            navigationItem.rightBarButtonItem = UIBarButtonItem(
-                title: .AppSettingsDone,
-                style: .done,
-                target: self,
-                action: #selector(done))
-        } else {
-            navigationItem.rightBarButtonItem = UIBarButtonItem(
-                title: .AppSettingsDone,
-                style: .done,
-                target: navigationController,
-                action: #selector((navigationController as! ThemedNavigationController).done))
-        }
-
+        setupNavigationBar()
         navigationItem.rightBarButtonItem?.accessibilityIdentifier = AccessibilityIdentifiers.Settings.navigationBarItem
         tableView.accessibilityIdentifier = AccessibilityIdentifiers.Settings.tableViewController
-
-        checkForDeeplinkSetting()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -141,16 +81,37 @@ class AppSettingsTableViewController: SettingsTableViewController,
         settingsDelegate?.didFinish()
     }
 
+    private func setupNavigationBar() {
+        navigationItem.title = String.AppSettingsTitle
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: .AppSettingsDone,
+            style: .done,
+            target: self,
+            action: #selector(done))
+    }
+
     // MARK: Handle Route decisions
 
     func handle(route: Route.SettingsSection) {
         switch route {
-        case .creditCard, .password:
+        case .password:
+            handlePasswordFlow(route: route)
+        case .creditCard:
             authenticateUserFor(route: route)
         case .rateApp:
             RatingPromptManager.goToAppStoreReview()
         default:
             break
+        }
+    }
+
+    private func handlePasswordFlow(route: Route.SettingsSection) {
+        // Show password onboarding before we authenticate
+        if LoginOnboarding.shouldShow() {
+            parentCoordinator?.showPasswordManager(shouldShowOnboarding: true)
+            LoginOnboarding.setShown()
+        } else {
+            authenticateUserFor(route: route)
         }
     }
 
@@ -174,95 +135,10 @@ class AppSettingsTableViewController: SettingsTableViewController,
         case .creditCard:
             self.parentCoordinator?.showCreditCardSettings()
         case .password:
-            self.parentCoordinator?.showPasswordManager(shouldShowOnboarding: LoginOnboarding.shouldShow())
-            LoginOnboarding.setShown()
+            self.parentCoordinator?.showPasswordManager(shouldShowOnboarding: false)
         default:
             break
         }
-    }
-
-    // Will be removed with FXIOS-6529
-    func checkForDeeplinkSetting() {
-        guard let deeplink = deeplinkTo else { return }
-        var viewController: SettingsTableViewController
-
-        switch deeplink {
-        case .contentBlocker:
-            viewController = ContentBlockerSettingViewController(prefs: profile.prefs)
-            viewController.tabManager = tabManager
-
-        case .customizeHomepage:
-            viewController = HomePageSettingViewController(prefs: profile.prefs)
-
-        case .customizeTabs:
-            viewController = TabsSettingsViewController()
-
-        case .customizeToolbar:
-            let viewModel = SearchBarSettingsViewModel(prefs: profile.prefs)
-            viewController = SearchBarSettingsViewController(viewModel: viewModel)
-
-        case .wallpaper:
-            let wallpaperManager = WallpaperManager()
-            if wallpaperManager.canSettingsBeShown {
-                let viewModel = WallpaperSettingsViewModel(wallpaperManager: wallpaperManager,
-                                                           tabManager: tabManager,
-                                                           theme: themeManager.currentTheme)
-                let wallpaperVC = WallpaperSettingsViewController(viewModel: viewModel)
-                navigationController?.pushViewController(wallpaperVC, animated: true)
-            }
-            return
-
-        case .creditCard:
-            let viewModel = CreditCardSettingsViewModel(profile: profile)
-            let viewController = CreditCardSettingsViewController(
-                creditCardViewModel: viewModel)
-            guard let navController = navigationController else { return }
-            if appAuthenticator.canAuthenticateDeviceOwner {
-                appAuthenticator.authenticateWithDeviceOwnerAuthentication { result in
-                    switch result {
-                    case .success:
-                        navController.pushViewController(viewController,
-                                                         animated: true)
-                    case .failure:
-                        break
-                    }
-                }
-            } else {
-                let passcodeViewController = DevicePasscodeRequiredViewController()
-                passcodeViewController.profile = profile
-                navController.pushViewController(passcodeViewController,
-                                                 animated: true)
-            }
-            return
-        case .customizeTopSites:
-            viewController = TopSitesSettingsViewController()
-        case .fxa:
-            let fxaParams = FxALaunchParams(entrypoint: .fxaDeepLinkSetting, query: [:])
-            let viewController = FirefoxAccountSignInViewController.getSignInOrFxASettingsVC(
-                fxaParams,
-                flowType: .emailLoginFlow,
-                referringPage: .settings,
-                profile: profile
-            )
-            navigationController?.pushViewController(viewController, animated: true)
-            return
-        case .mailto:
-            let viewController = OpenWithSettingsViewController(prefs: profile.prefs)
-            navigationController?.pushViewController(viewController, animated: true)
-            return
-        case .newTab:
-            viewController = NewTabContentSettingsViewController(prefs: profile.prefs)
-            viewController.profile = profile
-        case .search:
-            let viewController = SearchSettingsTableViewController(profile: profile)
-            navigationController?.pushViewController(viewController, animated: true)
-            return
-        }
-
-        viewController.profile = profile
-        navigationController?.pushViewController(viewController, animated: false)
-        // Add a done button from this view
-        viewController.navigationItem.rightBarButtonItem = navigationItem.rightBarButtonItem
     }
 
     // MARK: - Generate Settings
@@ -316,14 +192,6 @@ class AppSettingsTableViewController: SettingsTableViewController,
     }
 
     private func getGeneralSettings() -> [SettingSection] {
-        let blockpopUpSetting = BoolSetting(
-            prefs: profile.prefs,
-            theme: themeManager.currentTheme,
-            prefKey: PrefsKeys.KeyBlockPopups,
-            defaultValue: true,
-            titleText: .AppSettingsBlockPopups
-        )
-
         var generalSettings: [Setting] = [
             SearchSetting(settings: self, settingsDelegate: parentCoordinator),
             NewTabPageSetting(settings: self, settingsDelegate: parentCoordinator),
@@ -331,7 +199,7 @@ class AppSettingsTableViewController: SettingsTableViewController,
             OpenWithSetting(settings: self, settingsDelegate: parentCoordinator),
             ThemeSetting(settings: self, settingsDelegate: parentCoordinator),
             SiriPageSetting(settings: self, settingsDelegate: parentCoordinator),
-            blockpopUpSetting,
+            BlockPopupSetting(settings: self),
             NoImageModeSetting(settings: self),
         ]
 
@@ -339,9 +207,8 @@ class AppSettingsTableViewController: SettingsTableViewController,
             generalSettings.insert(SearchBarSetting(settings: self, settingsDelegate: parentCoordinator), at: 5)
         }
 
-        let tabTrayGroupsAreBuildActive = featureFlags.isFeatureEnabled(.tabTrayGroups, checking: .buildOnly)
         let inactiveTabsAreBuildActive = featureFlags.isFeatureEnabled(.inactiveTabs, checking: .buildOnly)
-        if tabTrayGroupsAreBuildActive || inactiveTabsAreBuildActive {
+        if inactiveTabsAreBuildActive {
             generalSettings.insert(TabsSetting(theme: themeManager.currentTheme, settingsDelegate: parentCoordinator), at: 3)
         }
 
@@ -394,11 +261,9 @@ class AppSettingsTableViewController: SettingsTableViewController,
 
         privacySettings.append(ContentBlockerSetting(settings: self, settingsDelegate: parentCoordinator))
 
-        if featureFlags.isFeatureEnabled(.notificationSettings, checking: .buildOnly) {
-            privacySettings.append(NotificationsSetting(theme: themeManager.currentTheme,
-                                                        profile: profile,
-                                                        settingsDelegate: parentCoordinator))
-        }
+        privacySettings.append(NotificationsSetting(theme: themeManager.currentTheme,
+                                                    profile: profile,
+                                                    settingsDelegate: parentCoordinator))
 
         privacySettings += [
             PrivacyPolicySetting(theme: themeManager.currentTheme, settingsDelegate: parentCoordinator)
@@ -449,9 +314,9 @@ class AppSettingsTableViewController: SettingsTableViewController,
             DeleteExportedDataSetting(settings: self),
             ForceCrashSetting(settings: self),
             ForgetSyncAuthStateDebugSetting(settings: self),
+            SwitchFakespotProduction(settings: self, settingsDelegate: self),
             ChangeToChinaSetting(settings: self),
             AppReviewPromptSetting(settings: self, settingsDelegate: self),
-            TogglePullToRefresh(settings: self, settingsDelegate: self),
             ToggleHistoryGroups(settings: self, settingsDelegate: self),
             ToggleInactiveTabs(settings: self, settingsDelegate: self),
             ResetContextualHints(settings: self),

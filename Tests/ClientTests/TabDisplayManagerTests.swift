@@ -10,7 +10,7 @@ import XCTest
 import Common
 
 class TabDisplayManagerTests: XCTestCase {
-    var tabCellIdentifier: TabDisplayer.TabCellIdentifier = TopTabCell.cellIdentifier
+    var tabCellIdentifier: TabDisplayerDelegate.TabCellIdentifier = TopTabCell.cellIdentifier
 
     var mockDataStore: WeakListMock<Tab>!
     var dataStore: WeakList<Tab>!
@@ -484,6 +484,11 @@ class TabDisplayManagerTests: XCTestCase {
 
         XCTAssertEqual(manager.privateTabs.count, 3, "Expected 3 tabs")
     }
+
+    func testTabDisplayManager_doesntLeak() {
+        let subject = createTabDisplayManager(useMockDataStore: false)
+        trackForMemoryLeaks(subject)
+    }
 }
 
 // Helper methods
@@ -497,38 +502,42 @@ extension TabDisplayManagerTests {
         waitForExpectations(timeout: 5, handler: nil)
     }
 
-    func createTabDisplayManager(useMockDataStore: Bool = true) -> TabDisplayManager {
-        let tabDisplayManager = TabDisplayManager(collectionView: collectionView,
-                                                  tabManager: manager,
-                                                  tabDisplayer: self,
-                                                  reuseID: TopTabCell.cellIdentifier,
-                                                  tabDisplayType: .TopTabTray,
-                                                  profile: profile,
-                                                  cfrDelegate: cfrDelegate,
-                                                  theme: LightTheme())
+    func createTabDisplayManager(file: StaticString = #file,
+                                 line: UInt = #line,
+                                 useMockDataStore: Bool = true) -> LegacyTabDisplayManager {
+        let tabDisplayManager = LegacyTabDisplayManager(collectionView: collectionView,
+                                                        tabManager: manager,
+                                                        tabDisplayer: self,
+                                                        reuseID: TopTabCell.cellIdentifier,
+                                                        tabDisplayType: .TopTabTray,
+                                                        profile: profile,
+                                                        cfrDelegate: cfrDelegate,
+                                                        theme: LightTheme())
         collectionView.dataSource = tabDisplayManager
         tabDisplayManager.dataStore = useMockDataStore ? mockDataStore : dataStore
+        trackForMemoryLeaks(tabDisplayManager, file: file, line: line)
         return tabDisplayManager
     }
 
-    func createTabDisplayManagerWithTabs(amountOfTabs: Int, isPrivate: Bool) -> TabDisplayManager {
+    func createTabDisplayManagerWithTabs(amountOfTabs: Int, isPrivate: Bool) -> LegacyTabDisplayManager {
         for _ in 0..<amountOfTabs {
             _ = manager.addTab(nil, afterTab: nil, isPrivate: isPrivate)
         }
 
-        let tabDisplayManager = TabDisplayManager(collectionView: collectionView,
-                                                  tabManager: manager,
-                                                  tabDisplayer: self,
-                                                  reuseID: TopTabCell.cellIdentifier,
-                                                  tabDisplayType: .TopTabTray,
-                                                  profile: profile,
-                                                  cfrDelegate: cfrDelegate,
-                                                  theme: LightTheme())
+        let tabDisplayManager = LegacyTabDisplayManager(collectionView: collectionView,
+                                                        tabManager: manager,
+                                                        tabDisplayer: self,
+                                                        reuseID: TopTabCell.cellIdentifier,
+                                                        tabDisplayType: .TopTabTray,
+                                                        profile: profile,
+                                                        cfrDelegate: cfrDelegate,
+                                                        theme: LightTheme())
         collectionView.dataSource = tabDisplayManager
+        trackForMemoryLeaks(tabDisplayManager)
         return tabDisplayManager
     }
 
-    func testSelectedCells(tabDisplayManager: TabDisplayManager, numberOfCells: Int, selectedIndex: Int, file: StaticString = #filePath, line: UInt = #line) {
+    func testSelectedCells(tabDisplayManager: LegacyTabDisplayManager, numberOfCells: Int, selectedIndex: Int, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertEqual(tabDisplayManager.dataStore.count, numberOfCells, file: file, line: line)
         for index in 0..<numberOfCells {
             let cell = tabDisplayManager.collectionView(collectionView, cellForItemAt: IndexPath(row: index, section: 0)) as! TabTrayCell
@@ -541,7 +550,7 @@ extension TabDisplayManagerTests {
     }
 }
 
-extension TabDisplayManagerTests: TabDisplayer {
+extension TabDisplayManagerTests: TabDisplayerDelegate {
     func focusSelectedTab() {}
 
     func cellFactory(for cell: UICollectionViewCell, using tab: Tab) -> UICollectionViewCell {

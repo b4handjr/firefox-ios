@@ -62,10 +62,8 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
     var bookmarksHandler: BookmarksHandler
     let profile: Profile
     let tabManager: TabManager
-    let appAuthenticator: AppAuthenticationProtocol
 
     weak var delegate: ToolBarActionMenuDelegate?
-    weak var menuActionDelegate: MenuActionsDelegate?
     weak var sendToDeviceDelegate: SendToDeviceDelegate?
     weak var navigationHandler: BrowserNavigationHandler?
 
@@ -80,15 +78,13 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
          tabManager: TabManager,
          buttonView: UIButton,
          toastContainer: UIView,
-         themeManager: ThemeManager = AppContainer.shared.resolve(),
-         appAuthenticator: AppAuthenticationProtocol = AppAuthenticator()
+         themeManager: ThemeManager = AppContainer.shared.resolve()
     ) {
         self.profile = profile
         self.bookmarksHandler = profile.places
         self.tabManager = tabManager
         self.buttonView = buttonView
         self.toastContainer = toastContainer
-        self.appAuthenticator = appAuthenticator
 
         self.selectedTab = tabManager.selectedTab
         self.tabUrl = selectedTab?.url
@@ -305,7 +301,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
     private func getNewTabAction() -> PhotonRowActions? {
         guard let tab = selectedTab else { return nil }
         return SingleActionViewModel(title: .AppMenu.NewTab,
-                                     iconString: ImageIdentifiers.Large.plus) { _ in
+                                     iconString: StandardImageIdentifiers.Large.plus) { _ in
             let shouldFocusLocationField = NewTabAccessors.getNewTabPage(self.profile.prefs) != .homePage
             self.delegate?.openNewTabFromMenu(focusLocationField: shouldFocusLocationField, isPrivate: tab.isPrivate)
             TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .createNewTab)
@@ -314,7 +310,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
 
     private func getHistoryLibraryAction() -> PhotonRowActions {
         return SingleActionViewModel(title: .AppMenu.AppMenuHistory,
-                                     iconString: ImageIdentifiers.Large.history) { _ in
+                                     iconString: StandardImageIdentifiers.Large.history) { _ in
             self.delegate?.showLibrary(panel: .history)
             TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .viewHistoryPanel)
         }.items
@@ -322,7 +318,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
 
     private func getDownloadsLibraryAction() -> PhotonRowActions {
         return SingleActionViewModel(title: .AppMenu.AppMenuDownloads,
-                                     iconString: ImageIdentifiers.Large.download) { _ in
+                                     iconString: StandardImageIdentifiers.Large.download) { _ in
             self.delegate?.showLibrary(panel: .downloads)
             TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .viewDownloadsPanel)
         }.items
@@ -358,11 +354,11 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
         let siteTypeTelemetryObject: TelemetryWrapper.EventObject
         if defaultUAisDesktop {
             toggleActionTitle = tab.changedUserAgent ? .AppMenu.AppMenuViewDesktopSiteTitleString : .AppMenu.AppMenuViewMobileSiteTitleString
-            toggleActionIcon = tab.changedUserAgent ? ImageIdentifiers.Large.deviceDesktop : ImageIdentifiers.Large.deviceMobile
+            toggleActionIcon = tab.changedUserAgent ? StandardImageIdentifiers.Large.deviceDesktop : StandardImageIdentifiers.Large.deviceMobile
             siteTypeTelemetryObject = .requestDesktopSite
         } else {
             toggleActionTitle = tab.changedUserAgent ? .AppMenu.AppMenuViewMobileSiteTitleString : .AppMenu.AppMenuViewDesktopSiteTitleString
-            toggleActionIcon = tab.changedUserAgent ? ImageIdentifiers.Large.deviceMobile : ImageIdentifiers.Large.deviceDesktop
+            toggleActionIcon = tab.changedUserAgent ? StandardImageIdentifiers.Large.deviceMobile : StandardImageIdentifiers.Large.deviceDesktop
             siteTypeTelemetryObject = .requestMobileSite
         }
 
@@ -378,7 +374,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
 
     private func getCopyAction() -> PhotonRowActions? {
         return SingleActionViewModel(title: .AppMenu.AppMenuCopyLinkTitleString,
-                                     iconString: ImageIdentifiers.Large.link) { _ in
+                                     iconString: StandardImageIdentifiers.Large.link) { _ in
             TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .copyAddress)
             if let url = self.selectedTab?.canonicalURL?.displayURL {
                 UIPasteboard.general.url = url
@@ -389,7 +385,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
 
     private func getSendToDevice() -> PhotonRowActions {
         return SingleActionViewModel(title: .AppMenu.TouchActions.SendLinkToDeviceTitle,
-                                     iconString: ImageIdentifiers.Large.deviceDesktopSend) { _ in
+                                     iconString: StandardImageIdentifiers.Large.deviceDesktopSend) { _ in
             guard let delegate = self.sendToDeviceDelegate,
                   let selectedTab = self.selectedTab,
                   let url = selectedTab.canonicalURL?.displayURL
@@ -416,7 +412,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
         guard featureFlags.isFeatureEnabled(.reportSiteIssue, checking: .buildOnly) else { return nil }
 
         return SingleActionViewModel(title: .AppMenu.AppMenuReportSiteIssueTitleString,
-                                     iconString: ImageIdentifiers.Large.lightbulb) { _ in
+                                     iconString: StandardImageIdentifiers.Large.lightbulb) { _ in
             guard let tabURL = self.selectedTab?.url?.absoluteString else { return }
             self.delegate?.openURLInNewTab(SupportUtils.URLForReportSiteIssue(tabURL), isPrivate: false)
             TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .reportSiteIssue)
@@ -425,7 +421,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
 
     private func getHelpAction() -> PhotonRowActions {
         return SingleActionViewModel(title: .AppMenu.Help,
-                                     iconString: ImageIdentifiers.Large.helpCircle) { _ in
+                                     iconString: StandardImageIdentifiers.Large.helpCircle) { _ in
             if let url = URL(string: "https://support.mozilla.org/products/ios") {
                 self.delegate?.openURLInNewTab(url, isPrivate: false)
             }
@@ -435,7 +431,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
 
     private func getCustomizeHomePageAction() -> PhotonRowActions? {
         return SingleActionViewModel(title: .AppMenu.CustomizeHomePage,
-                                     iconString: ImageIdentifiers.Large.edit) { _ in
+                                     iconString: StandardImageIdentifiers.Large.edit) { _ in
             self.delegate?.showCustomizeHomePage()
             TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .customizeHomePage)
         }.items
@@ -444,40 +440,14 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
     private func getSettingsAction() -> PhotonRowActions {
         let openSettings = SingleActionViewModel(title: .AppMenu.AppMenuSettingsTitleString,
                                                  iconString: ImageIdentifiers.settings) { _ in
-            if CoordinatorFlagManager.isSettingsCoordinatorEnabled {
-                TelemetryWrapper.recordEvent(category: .action, method: .open, object: .settings)
+            TelemetryWrapper.recordEvent(category: .action, method: .open, object: .settings)
 
-                // Wait to show settings in async dispatch since hamburger menu is still showing at that time
-                DispatchQueue.main.async {
-                    self.navigationHandler?.show(settings: .general)
-                }
-            } else {
-                self.legacyShowSettings()
+            // Wait to show settings in async dispatch since hamburger menu is still showing at that time
+            DispatchQueue.main.async {
+                self.navigationHandler?.show(settings: .general)
             }
         }.items
         return openSettings
-    }
-
-    // Will be removed with FXIOS-6529
-    private func legacyShowSettings() {
-        let settingsTableViewController = AppSettingsTableViewController(
-            with: self.profile,
-            and: self.tabManager,
-            delegate: self.menuActionDelegate)
-
-        let controller = ThemedNavigationController(rootViewController: settingsTableViewController)
-        // On iPhone iOS13 the WKWebview crashes while presenting file picker if its not full screen. Ref #6232
-        if UIDevice.current.userInterfaceIdiom == .phone {
-            controller.modalPresentationStyle = .fullScreen
-        }
-        controller.presentingModalViewControllerDelegate = self.menuActionDelegate
-        TelemetryWrapper.recordEvent(category: .action, method: .open, object: .settings)
-
-        // Wait to present VC in an async dispatch queue to prevent a case where dismissal
-        // of this popover on iPad seems to block the presentation of the modal VC.
-        DispatchQueue.main.async {
-            self.delegate?.showViewController(viewController: controller)
-        }
     }
 
     private func getNightModeAction() -> [PhotonRowActions] {
@@ -541,7 +511,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
             return userProfile.displayName ?? userProfile.email
         }()
 
-        let iconString = needsReAuth ? ImageIdentifiers.warning : ImageIdentifiers.Large.avatarCircle
+        let iconString = needsReAuth ? ImageIdentifiers.warning : StandardImageIdentifiers.Large.avatarCircle
 
         var iconURL: URL?
         if let str = rustAccount.userProfile?.avatarUrl, let url = URL(string: str) {
@@ -591,11 +561,10 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
         return SingleActionViewModel(title: .AppMenu.AppMenuSharePageTitleString,
                                      iconString: ImageIdentifiers.share) { _ in
             guard let tab = self.selectedTab,
-                  let url = tab.url,
-                  let presentableVC = self.menuActionDelegate as? PresentableVC
+                  let url = tab.url
             else { return }
 
-            self.share(fileURL: url, buttonView: self.buttonView, presentableVC: presentableVC)
+            self.share(fileURL: url, buttonView: self.buttonView)
         }.items
     }
 
@@ -624,9 +593,8 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
                     // If we successfully got a temp file URL, share it like a downloaded file,
                     // otherwise present the ordinary share menu for the web URL.
                     if let tempDocURL = tempDocURL,
-                       tempDocURL.isFileURL,
-                       let presentableVC = self.menuActionDelegate as? PresentableVC {
-                        self.share(fileURL: tempDocURL, buttonView: self.buttonView, presentableVC: presentableVC)
+                       tempDocURL.isFileURL {
+                        self.share(fileURL: tempDocURL, buttonView: self.buttonView)
                     } else {
                         if CoordinatorFlagManager.isShareExtensionCoordinatorEnabled {
                             self.navigationHandler?.showShareExtension(
@@ -644,7 +612,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
     }
 
     // Main menu option Share page with when opening a file
-    private func share(fileURL: URL, buttonView: UIView, presentableVC: PresentableVC) {
+    private func share(fileURL: URL, buttonView: UIView) {
         if CoordinatorFlagManager.isShareExtensionCoordinatorEnabled {
             navigationHandler?.showShareExtension(
                 url: fileURL,
@@ -694,7 +662,6 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
 
     private func getAddReadingListAction() -> SingleActionViewModel {
         return SingleActionViewModel(title: .AppMenu.AddReadingList,
-                                     alternateTitle: .AppMenu.AddReadingListAlternateTitle,
                                      iconString: ImageIdentifiers.addToReadingList) { _ in
             guard let tab = self.selectedTab,
                   let url = self.tabUrl?.displayURL
@@ -708,8 +675,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
 
     private func getRemoveReadingListAction() -> SingleActionViewModel {
         return SingleActionViewModel(title: .AppMenu.RemoveReadingList,
-                                     alternateTitle: .AppMenu.RemoveReadingListAlternateTitle,
-                                     iconString: ImageIdentifiers.Large.delete) { _ in
+                                     iconString: StandardImageIdentifiers.Large.delete) { _ in
             guard let url = self.tabUrl?.displayURL?.absoluteString,
                   let record = self.profile.readingList.getRecordWithURL(url).value.successValue
             else { return }
@@ -741,7 +707,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
 
     private func getBookmarkLibraryAction() -> SingleActionViewModel {
         return SingleActionViewModel(title: .AppMenu.Bookmarks,
-                                     iconString: ImageIdentifiers.Large.bookmarkTrayFill) { _ in
+                                     iconString: StandardImageIdentifiers.Large.bookmarkTrayFill) { _ in
             self.delegate?.showLibrary(panel: .bookmarks)
         }
     }
@@ -752,8 +718,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
 
     private func getAddBookmarkAction() -> SingleActionViewModel {
         return SingleActionViewModel(title: .AppMenu.AddBookmark,
-                                     alternateTitle: .AppMenu.AddBookmarkAlternateTitle,
-                                     iconString: ImageIdentifiers.Large.bookmark) { _ in
+                                     iconString: StandardImageIdentifiers.Large.bookmark) { _ in
             guard let tab = self.selectedTab,
                   let url = tab.canonicalURL?.displayURL
             else { return }
@@ -766,8 +731,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
 
     private func getRemoveBookmarkAction() -> SingleActionViewModel {
         return SingleActionViewModel(title: .AppMenu.RemoveBookmark,
-                                     alternateTitle: .AppMenu.RemoveBookmarkAlternateTitle,
-                                     iconString: ImageIdentifiers.Large.bookmarkSlash) { _ in
+                                     iconString: StandardImageIdentifiers.Large.bookmarkSlash) { _ in
             guard let url = self.tabUrl?.displayURL else { return }
 
             self.profile.places.deleteBookmarksWithURL(url: url.absoluteString).uponQueue(.main) { result in
@@ -788,7 +752,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
 
     private func getAddShortcutAction() -> SingleActionViewModel {
         return SingleActionViewModel(title: .AddToShortcutsActionTitle,
-                                     iconString: ImageIdentifiers.addShortcut) { _ in
+                                     iconString: StandardImageIdentifiers.Large.pin) { _ in
             guard let url = self.selectedTab?.url?.displayURL,
                   let title = self.selectedTab?.displayTitle else { return }
             let site = Site(url: url.absoluteString, title: title)
@@ -803,7 +767,7 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
 
     private func getRemoveShortcutAction() -> SingleActionViewModel {
         return SingleActionViewModel(title: .AppMenu.RemoveFromShortcuts,
-                                     iconString: ImageIdentifiers.removeFromShortcut) { _ in
+                                     iconString: StandardImageIdentifiers.Large.pinSlash) { _ in
             guard let url = self.selectedTab?.url?.displayURL,
                   let title = self.selectedTab?.displayTitle else { return }
             let site = Site(url: url.absoluteString, title: title)
@@ -818,77 +782,15 @@ class MainMenuActionHelper: PhotonActionSheetProtocol,
 
     // MARK: Password
 
-    typealias NavigationHandlerType = (_ url: URL?) -> Void
     private func getPasswordAction(navigationController: UINavigationController?) -> PhotonRowActions? {
-        guard PasswordManagerListViewController.shouldShowAppMenuShortcut(forPrefs: profile.prefs),
-              let navigationController = navigationController
-        else { return nil }
+        guard PasswordManagerListViewController.shouldShowAppMenuShortcut(forPrefs: profile.prefs) else { return nil }
 
         return SingleActionViewModel(title: .AppMenu.AppMenuPasswords,
-                                     iconString: ImageIdentifiers.Large.login,
+                                     iconString: StandardImageIdentifiers.Large.login,
                                      iconType: .Image,
                                      iconAlignment: .left) { _ in
-            if CoordinatorFlagManager.isSettingsCoordinatorEnabled {
-                self.navigationHandler?.show(settings: .password)
-                return
-            }
-
-            let navigationHandler: NavigationHandlerType = { url in
-                UIWindow.keyWindow?.rootViewController?.dismiss(animated: true, completion: nil)
-                self.delegate?.openURLInNewTab(url, isPrivate: false)
-            }
-
-            if self.appAuthenticator.canAuthenticateDeviceOwner {
-                if LoginOnboarding.shouldShow() {
-                    self.showLoginOnboarding(navigationHandler: navigationHandler, navigationController: navigationController)
-                } else {
-                    self.showLoginListVC(navigationHandler: navigationHandler, navigationController: navigationController)
-                }
-            } else {
-                let rootViewController = DevicePasscodeRequiredViewController(shownFromAppMenu: true)
-                let navController = ThemedNavigationController(rootViewController: rootViewController)
-                self.delegate?.showViewController(viewController: navController)
-            }
+            self.navigationHandler?.show(settings: .password)
         }.items
-    }
-
-    private func showLoginOnboarding(navigationHandler: @escaping NavigationHandlerType, navigationController: UINavigationController) {
-        let loginOnboardingViewController = PasswordManagerOnboardingViewController(shownFromAppMenu: true)
-        loginOnboardingViewController.doneHandler = {
-            loginOnboardingViewController.dismiss(animated: true)
-        }
-
-        loginOnboardingViewController.proceedHandler = {
-            loginOnboardingViewController.dismiss(animated: true) {
-                self.showLoginListVC(navigationHandler: navigationHandler, navigationController: navigationController)
-            }
-        }
-
-        let navController = ThemedNavigationController(rootViewController: loginOnboardingViewController)
-        delegate?.showViewController(viewController: navController)
-
-        LoginOnboarding.setShown()
-    }
-
-    private func showLoginListVC(navigationHandler: @escaping NavigationHandlerType, navigationController: UINavigationController) {
-        guard let menuActionDelegate = menuActionDelegate else { return }
-        PasswordManagerListViewController.create(
-            didShowFromAppMenu: true,
-            authenticateInNavigationController: navigationController,
-            profile: self.profile,
-            settingsDelegate: menuActionDelegate,
-            webpageNavigationHandler: navigationHandler
-        ) { [weak self] loginsVC in
-            self?.presentLoginList(loginsVC)
-        }
-    }
-
-    private func presentLoginList(_ loginsVC: PasswordManagerListViewController?) {
-        guard let loginsVC = loginsVC else { return }
-        let navController = ThemedNavigationController(rootViewController: loginsVC)
-        delegate?.showViewController(viewController: navController)
-
-        TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .logins)
     }
 
     // MARK: - Conveniance

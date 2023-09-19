@@ -36,6 +36,7 @@ public protocol SyncManager {
     func onRemovedAccount() -> Success
     @discardableResult
     func onAddedAccount() -> Success
+    func updateCreditCardAutofillStatus(value: Bool)
 }
 
 /// This exists to pass in external context: e.g., the UIApplication can
@@ -616,8 +617,11 @@ open class BrowserProfile: Profile {
     }
 
     lazy var logins: RustLogins = {
-        let sqlCipherDatabasePath = URL(fileURLWithPath: (try! files.getAndEnsureDirectory()), isDirectory: true).appendingPathComponent("logins.db").path
+        // TODO: #16076 - We should avoid force unwraps
         let databasePath = URL(fileURLWithPath: (try! files.getAndEnsureDirectory()), isDirectory: true).appendingPathComponent("loginsPerField.db").path
+        // Though we don't migrate SQLCipher DBs anymore, we keep this call to
+        // delete any existing DBs if they still exist
+        let sqlCipherDatabasePath = URL(fileURLWithPath: (try! files.getAndEnsureDirectory()), isDirectory: true).appendingPathComponent("logins.db").path
 
         return RustLogins(sqlCipherDatabasePath: sqlCipherDatabasePath, databasePath: databasePath)
     }()
@@ -641,13 +645,13 @@ open class BrowserProfile: Profile {
     }
 
     func removeAccount() {
-        let useNewAutopush = prefs.boolForKey(PrefsKeys.FeatureFlags.AutopushFeature) ?? false
+        logger.log("Removing sync account", level: .debug, category: .sync)
 
-        RustFirefoxAccounts.shared.disconnect(useNewAutopush: useNewAutopush)
+        RustFirefoxAccounts.shared.disconnect()
 
         // Not available in extensions
         #if !MOZ_TARGET_NOTIFICATIONSERVICE && !MOZ_TARGET_SHARETO && !MOZ_TARGET_CREDENTIAL_PROVIDER
-        unregisterRemoteNotifications(useNewAutopush: useNewAutopush)
+        unregisterRemoteNotifications()
         #endif
 
         // remove Account Metadata
@@ -695,21 +699,19 @@ open class BrowserProfile: Profile {
 
     // Profile exists in extensions, UIApp is unavailable there, make this code run for the main app only
     @available(iOSApplicationExtension, unavailable, message: "UIApplication.shared is unavailable in application extensions")
-    private func unregisterRemoteNotifications(useNewAutopush: Bool) {
-        if useNewAutopush {
-            Task {
-                do {
-                    let autopush = try await Autopush(files: files)
-                    // unsubscribe returns a boolean telling the caller if the subscription was already
-                    // unsubscribed, we ignore it because regardless the subscription is gone.
-                    _ = try await autopush.unsubscribe(scope: RustFirefoxAccounts.pushScope)
-                } catch let error {
-                    logger.log("Unable to unsubscribe account push subscription",
-                               level: .warning,
-                               category: .sync,
-                               description: error.localizedDescription
-                    )
-                }
+    private func unregisterRemoteNotifications() {
+        Task {
+            do {
+                let autopush = try await Autopush(files: files)
+                // unsubscribe returns a boolean telling the caller if the subscription was already
+                // unsubscribed, we ignore it because regardless the subscription is gone.
+                _ = try await autopush.unsubscribe(scope: RustFirefoxAccounts.pushScope)
+            } catch let error {
+                logger.log("Unable to unsubscribe account push subscription",
+                           level: .warning,
+                           category: .sync,
+                           description: error.localizedDescription
+                )
             }
         }
         if let application = UIApplication.value(forKeyPath: #keyPath(UIApplication.shared)) as? UIApplication {

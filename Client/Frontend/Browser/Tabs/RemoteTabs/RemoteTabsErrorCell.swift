@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import Common
+import ComponentLibrary
 import UIKit
 import Shared
 
@@ -37,23 +38,23 @@ class RemoteTabsErrorCell: UITableViewCell, ReusableCell, ThemeApplicable {
 
     private let titleLabel: UILabel = .build { label in
         label.adjustsFontForContentSizeCategory = true
-        label.font = DynamicFontHelper.defaultHelper.preferredFont(withTextStyle: .title2,
-                                                                   size: UX.titleSizeFont)
+        label.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .title2,
+                                                            size: UX.titleSizeFont)
         label.numberOfLines = 0
         label.textAlignment = .center
     }
 
     private let instructionsLabel: UILabel = .build { label in
         label.adjustsFontForContentSizeCategory = true
-        label.font = DynamicFontHelper.defaultHelper.preferredFont(withTextStyle: .body,
-                                                                   size: UX.descriptionSizeFont)
+        label.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .body,
+                                                            size: UX.descriptionSizeFont)
         label.numberOfLines = 0
         label.textAlignment = .center
     }
 
     private let signInButton: ResizableButton = .build { button in
-        button.titleLabel?.font = DynamicFontHelper.defaultHelper.preferredFont(withTextStyle: .callout,
-                                                                                size: UX.buttonSizeFont)
+        button.titleLabel?.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .callout,
+                                                                         size: UX.buttonSizeFont)
         button.setTitle(.Settings.Sync.ButtonTitle, for: [])
         button.layer.cornerRadius = UX.buttonCornerRadius
         button.contentEdgeInsets = UIEdgeInsets(top: UX.buttonVerticalInset,
@@ -85,7 +86,7 @@ class RemoteTabsErrorCell: UITableViewCell, ReusableCell, ThemeApplicable {
         instructionsLabel.text = error.localizedString()
 
         // Show signIn button only for notLoggedIn case
-        if error == .notLoggedIn {
+        if error == .notLoggedIn || error == .syncDisabledByUser {
             signInButton.isHidden = false
             signInButton.addTarget(self, action: #selector(presentSignIn), for: .touchUpInside)
         }

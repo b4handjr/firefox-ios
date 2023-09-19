@@ -17,11 +17,6 @@ features:
           The list of available cards for onboarding.
         type: Map<String, NimbusOnboardingCardData>
         default: {}
-      instruction-popup:
-        description: >
-          The contents of the instruction popup.
-        type: NimbusInstructionPopup
-        default: {}
       dismissable:
         description: >
           Whether or not the entire onboarding is dismissable
@@ -37,15 +32,18 @@ features:
           cards:
             welcome:
               order: 10
-              title: Onboarding/Onboarding.Welcome.Title.v114
-              body: Onboarding/Onboarding.Welcome.Description.v114
+              title: Onboarding/Onboarding.Welcome.Title.TreatementA.v114
+              body: Onboarding/Onboarding.Welcome.Description.TreatementA.v114
               image: welcome-globe
               link:
                 title: Onboarding/Onboarding.Welcome.Link.Action.v114
                 url: "https://www.mozilla.org/privacy/firefox/"
               buttons:
                 primary:
-                  title: Onboarding/Onboarding.Welcome.Action.v114
+                  title: Onboarding/Onboarding.Welcome.ActionTreatementA.v114
+                  action: set-default-browser
+                secondary:
+                  title: Onboarding/Onboarding.Welcome.Skip.v114
                   action: next-card
               type: fresh-install
               prerequisites:
@@ -91,7 +89,7 @@ features:
                   action: next-card
               type: upgrade
               prerequisites:
-                - ALWAYS
+                - NEVER
             update-sign-to-sync:
               order: 20
               title: Upgrade/Upgrade.SyncSign.Title.v114
@@ -106,14 +104,7 @@ features:
                   action: next-card
               type: upgrade
               prerequisites:
-                - ALWAYS
-          instruction-popup:
-            title: Onboarding/DefaultBrowserPopup.Title.v114
-            button-title: Onboarding/DefaultBrowserPopup.ButtonTitle.v114
-            instructions:
-              - Onboarding/DefaultBrowserPopup.FirstLabel.v114
-              - Onboarding/DefaultBrowserPopup.SecondLabel.v114
-              - Onboarding/DefaultBrowserPopup.ThirdLabel.v114
+                - NEVER
           dismissable: true
 
 objects:
@@ -159,6 +150,14 @@ objects:
             title: Onboarding/Onboarding.Sync.Skip.Action.v114
             action: next-card
           secondary: null
+      instructions-popup:
+        type: Option<NimbusInstructionPopup>
+        description: >
+          The object describing the specific instruction popup
+          button for a card.
+          If left empty, the card will have no instruction
+          popup information
+        default: null
       prerequisites:
         type: List<String>
         description: >
@@ -249,6 +248,12 @@ objects:
           The title the button should have.
           This should never be defaulted.
         default: ""
+      button-action:
+        type: OnboardingInstructionsPopupActions
+        description: >
+          The action the button should have.
+          Default is `dismiss-and-next-card`
+        default: dismiss-and-next-card
 
 enums:
   OnboardingActions:
@@ -267,13 +272,27 @@ enums:
       set-default-browser:
         description: >
           Will send the user to settings to set Firefox as their default browser
-      open-default-browser-popup:
+      open-instructions-popup:
         description: >
-          Will open up a popup with instructions for setting
-          Firefox as their default browser.
+          Will open up a popup with instructions for something
       read-privacy-policy:
         description: >
           Will open a webview where the user can read the privacy policy
+  OnboardingInstructionsPopupActions:
+    description: >
+      The identifiers for the different actions available for the
+      insturction card in onboarding
+    variants:
+      open-ios-fx-settings:
+        description: >
+          Will take the user to the default browser settings
+          in the iOS system settings
+      dismiss-and-next-card:
+        description: >
+          Will dismiss the popup and move to the next card
+      dismiss:
+        description: >
+          Will dismiss the popup
   NimbusOnboardingImages:
     description: >
       The identifiers for the different images available for cards in onboarding
@@ -287,15 +306,21 @@ enums:
       sync-devices-ctd:
         description: >
           Corresponding to the sync image for CTD
-      welcome-globe:
-        description: >
-          Corresponding to the fox world image
       notifications:
         description: >
           Corresponding to the notifications image
       sync-devices:
         description: >
           Corresponding to the sync-devices image
+      set-to-dock:
+        description: >
+          Corresponding to the set to dock image
+      search-widget:
+        description: >
+          Corresponding to the fox search widget image
+      welcome-globe:
+        description: >
+          Corresponding to the fox world image
   OnboardingType:
     description: >
       The identifiers for the different types of onboarding cards.

@@ -25,7 +25,8 @@ class ActivityStreamTest: BaseTestCase {
                 LaunchArguments.SkipWhatsNew,
                 LaunchArguments.SkipETPCoverSheet,
                 LaunchArguments.LoadDatabasePrefix + pagesVisited,
-                LaunchArguments.SkipContextualHints]
+                LaunchArguments.SkipContextualHints,
+                LaunchArguments.DisableAnimations]
         }
         launchArguments.append(LaunchArguments.SkipAddingGoogleTopSite)
         launchArguments.append(LaunchArguments.SkipSponsoredShortcuts)
@@ -210,7 +211,6 @@ class ActivityStreamTest: BaseTestCase {
         waitForExistence(app.cells[AccessibilityIdentifiers.FirefoxHomepage.TopSites.itemCell])
         XCTAssertTrue(app.cells[AccessibilityIdentifiers.FirefoxHomepage.TopSites.itemCell].exists)
         let numberOfTopSites = app.collectionViews.cells.matching(identifier: AccessibilityIdentifiers.FirefoxHomepage.TopSites.itemCell).count
-
         XCTAssertEqual(numberOfTopSites, numberOfExpectedTopSites, "The number of Top Sites is not correct")
     }
 

@@ -7,6 +7,7 @@ import UIKit
 import Storage
 import MozillaAppServices
 import Common
+import ComponentLibrary
 
 class HomepageViewController: UIViewController, FeatureFlaggable, Themeable, ContentContainable,
                                 SearchBarLocationProvider {
@@ -29,6 +30,8 @@ class HomepageViewController: UIViewController, FeatureFlaggable, Themeable, Con
         }
     }
 
+    weak var statusBarScrollDelegate: StatusBarScrollDelegate?
+
     private var viewModel: HomepageViewModel
     private var contextMenuHelper: HomepageContextMenuHelper
     private var tabManager: TabManager
@@ -44,14 +47,6 @@ class HomepageViewController: UIViewController, FeatureFlaggable, Themeable, Con
     var themeManager: ThemeManager
     var notificationCenter: NotificationProtocol
     var themeObserver: NSObjectProtocol?
-
-    // Background for status bar
-    private lazy var statusBarView: UIView = {
-        let statusBarFrame = statusBarFrame ?? CGRect.zero
-        let statusBarView = UIView(frame: statusBarFrame)
-        view.addSubview(statusBarView)
-        return statusBarView
-    }()
 
     // Content stack views contains collection view.
     lazy var contentStackView: UIStackView = .build { stackView in
@@ -83,12 +78,12 @@ class HomepageViewController: UIViewController, FeatureFlaggable, Themeable, Con
                                            tabManager: tabManager,
                                            theme: themeManager.currentTheme)
 
-        let jumpBackInContextualViewModel = ContextualHintViewModel(forHintType: .jumpBackIn,
-                                                                    with: viewModel.profile)
-        self.jumpBackInContextualHintViewController = ContextualHintViewController(with: jumpBackInContextualViewModel)
-        let syncTabContextualViewModel = ContextualHintViewModel(forHintType: .jumpBackInSyncedTab,
-                                                                 with: viewModel.profile)
-        self.syncTabContextualHintViewController = ContextualHintViewController(with: syncTabContextualViewModel)
+        let jumpBackInContextualViewProvider = ContextualHintViewProvider(forHintType: .jumpBackIn,
+                                                                          with: viewModel.profile)
+        self.jumpBackInContextualHintViewController = ContextualHintViewController(with: jumpBackInContextualViewProvider)
+        let syncTabContextualViewProvider = ContextualHintViewProvider(forHintType: .jumpBackInSyncedTab,
+                                                                       with: viewModel.profile)
+        self.syncTabContextualHintViewController = ContextualHintViewController(with: syncTabContextualViewProvider)
         self.contextMenuHelper = HomepageContextMenuHelper(viewModel: viewModel, toastContainer: toastContainer)
 
         self.themeManager = themeManager
@@ -144,20 +139,29 @@ class HomepageViewController: UIViewController, FeatureFlaggable, Themeable, Con
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        viewModel.recordViewAppeared()
+
+        notificationCenter.post(name: .ShowHomepage)
+        notificationCenter.post(name: .HistoryUpdated)
+
         applyTheme()
-        homepageWillAppear(isZeroSearch: viewModel.isZeroSearch)
         reloadView()
-        NotificationCenter.default.post(name: .ShowHomepage, object: nil)
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        homepageDidAppear()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+            self?.displayWallpaperSelector()
+        }
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        homepageWillDisappear()
+
+        jumpBackInContextualHintViewController.stopTimer()
+        syncTabContextualHintViewController.stopTimer()
+        viewModel.recordViewDisappeared()
     }
 
     override func viewDidDisappear(_ animated: Bool) {
@@ -224,11 +228,11 @@ class HomepageViewController: UIViewController, FeatureFlaggable, Themeable, Con
 
     func configureWallpaperView() {
         view.addSubview(wallpaperView)
-        var wallpaperTopConstant: CGFloat = 0
-        if CoordinatorFlagManager.isCoordinatorEnabled {
-            // Constraint so wallpaper appears under the status bar
-            wallpaperTopConstant = statusBarFrame?.height ?? 0
-        }
+
+        // Constraint so wallpaper appears under the status bar
+        let window = UIApplication.shared.windows.first
+        let wallpaperTopConstant: CGFloat = window?.safeAreaInsets.top ?? statusBarFrame?.height ?? 0
+
         NSLayoutConstraint.activate([
             wallpaperView.topAnchor.constraint(equalTo: view.topAnchor, constant: -wallpaperTopConstant),
             wallpaperView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -246,6 +250,7 @@ class HomepageViewController: UIViewController, FeatureFlaggable, Themeable, Con
                   let viewModel = self.viewModel.getSectionViewModel(shownSection: sectionIndex),
                   viewModel.shouldShow
             else { return nil }
+            self.logger.log("Section \(viewModel.sectionType) is going to show", level: .debug, category: .homepage)
             return viewModel.section(for: layoutEnvironment.traitCollection, size: self.view.frame.size)
         }
         return layout
@@ -269,32 +274,16 @@ class HomepageViewController: UIViewController, FeatureFlaggable, Themeable, Con
         viewModel.handleLongPress(with: collectionView, indexPath: indexPath)
     }
 
-    // FXIOS-6203 - Clean up custom homepage view cycles
-    // MARK: - Homepage view cycle
-    /// Normal view controller view cycles cannot be relied on the homepage since the current way of showing and hiding the homepage is through alpha.
-    /// This is a problem that need to be fixed but until then we have to rely on the methods here.
-
-    func homepageWillAppear(isZeroSearch: Bool) {
-        logger.log("\(type(of: self)) will appear", level: .info, category: .lifecycle)
-
-        viewModel.isZeroSearch = isZeroSearch
-        viewModel.recordViewAppeared()
-        notificationCenter.post(name: .HistoryUpdated)
-    }
-
-    func homepageDidAppear() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-            self?.displayWallpaperSelector()
-        }
-    }
-
-    func homepageWillDisappear() {
-        jumpBackInContextualHintViewController.stopTimer()
-        syncTabContextualHintViewController.stopTimer()
-        viewModel.recordViewDisappeared()
-    }
-
     // MARK: - Helpers
+
+    /// Configure isZeroSearch
+    /// - Parameter isZeroSearch: IsZeroSearch is true when the homepage is created from the tab tray, a long press
+    /// on the tab bar to open a new tab or by pressing the home page button on the tab bar. Inline is false when
+    /// it's the zero search page, aka when the home page is shown by clicking the url bar from a loaded web page.
+    /// This needs to be set properly for telemetry and the contextual pop overs that appears on homepage
+    func configure(isZeroSearch: Bool) {
+        viewModel.isZeroSearch = isZeroSearch
+    }
 
     /// On iPhone, we call reloadOnRotation when the trait collection has changed, to ensure calculation
     /// is done with the new trait. On iPad, trait collection doesn't change from portrait to landscape (and vice-versa)
@@ -334,12 +323,11 @@ class HomepageViewController: UIViewController, FeatureFlaggable, Themeable, Con
         let theme = themeManager.currentTheme
         viewModel.theme = theme
         view.backgroundColor = theme.colors.layer1
-        updateStatusBar(theme: theme)
     }
 
     func scrollToTop(animated: Bool = false) {
-        let statusBarHeight = view.window?.windowScene?.statusBarManager?.statusBarFrame.height ?? 50
-        collectionView?.setContentOffset(isBottomSearchBar ? CGPoint(x: 0, y: -statusBarHeight): .zero, animated: animated)
+        collectionView?.setContentOffset(.zero, animated: animated)
+        scrollViewDidScroll(collectionView)
     }
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
@@ -354,7 +342,12 @@ class HomepageViewController: UIViewController, FeatureFlaggable, Themeable, Con
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        updateStatusBar(theme: themeManager.currentTheme)
+        // We only handle status bar overlay alpha if there's a wallpaper applied on the homepage
+        if WallpaperManager().currentWallpaper.type != .defaultWallpaper {
+            statusBarScrollDelegate?.scrollViewDidScroll(scrollView,
+                                                         statusBarFrame: statusBarFrame,
+                                                         theme: themeManager.currentTheme)
+        }
     }
 
     private func showSiteWithURLHandler(_ url: URL, isGoogleTopSite: Bool = false) {
@@ -373,7 +366,7 @@ class HomepageViewController: UIViewController, FeatureFlaggable, Themeable, Con
             self.homePanelDidRequestToOpenSettings(at: .wallpaper)
         })
         let viewController = WallpaperSelectorViewController(viewModel: viewModel)
-        var bottomSheetViewModel = BottomSheetViewModel()
+        var bottomSheetViewModel = BottomSheetViewModel(closeButtonA11yLabel: .CloseButtonTitle)
         bottomSheetViewModel.shouldDismissForTapOutside = false
         let bottomSheetVC = BottomSheetViewController(
             viewModel: bottomSheetViewModel,
@@ -387,11 +380,7 @@ class HomepageViewController: UIViewController, FeatureFlaggable, Themeable, Con
     // Check if we already present something on top of the homepage,
     // if the homepage is actually being shown to the user and if the page is shown from a loaded webpage (zero search).
     private var canModalBePresented: Bool {
-        if CoordinatorFlagManager.isCoordinatorEnabled {
-            return presentedViewController == nil && !viewModel.isZeroSearch
-        } else {
-            return presentedViewController == nil && view.alpha == 1 && !viewModel.isZeroSearch
-        }
+        return presentedViewController == nil && viewModel.isZeroSearch
     }
 
     // MARK: - Contextual hint
@@ -548,10 +537,6 @@ private extension HomepageViewController {
         }
 
         // Jumpback in
-        viewModel.jumpBackInViewModel.onTapGroup = { [weak self] tab in
-            self?.homePanelDelegate?.homePanelDidRequestToOpenTabTray(withFocusedTab: tab)
-        }
-
         viewModel.jumpBackInViewModel.headerButtonAction = { [weak self] button in
             self?.openTabTray(button)
         }
@@ -692,7 +677,7 @@ private extension HomepageViewController {
     }
 
     func openCustomizeHomeSettings() {
-        homePanelDelegate?.homePanelDidRequestToOpenSettings(at: .customizeHomepage)
+        homePanelDelegate?.homePanelDidRequestToOpenSettings(at: .homePage)
         TelemetryWrapper.recordEvent(category: .action,
                                      method: .tap,
                                      object: .firefoxHomepage,
@@ -700,7 +685,7 @@ private extension HomepageViewController {
     }
 
     func openTabsSettings() {
-        homePanelDelegate?.homePanelDidRequestToOpenSettings(at: .customizeTabs)
+        homePanelDelegate?.homePanelDidRequestToOpenSettings(at: .tabs)
     }
 
     func getPopoverSourceRect(sourceView: UIView?) -> CGRect {
@@ -719,7 +704,7 @@ extension HomepageViewController: HomepageContextMenuHelperDelegate {
         homePanelDelegate?.homePanelDidRequestToOpenInNewTab(url, isPrivate: isPrivate, selectNewTab: selectNewTab)
     }
 
-    func homePanelDidRequestToOpenSettings(at settingsPage: AppSettingsDeeplinkOption) {
+    func homePanelDidRequestToOpenSettings(at settingsPage: Route.SettingsSection) {
         homePanelDelegate?.homePanelDidRequestToOpenSettings(at: settingsPage)
     }
 
@@ -735,44 +720,6 @@ extension HomepageViewController {
         guard let keyWindow = UIWindow.keyWindow else { return nil }
 
         return keyWindow.windowScene?.statusBarManager?.statusBarFrame
-    }
-
-    // Returns a value between 0 and 1 which indicates how far the user has scrolled.
-    // This is used as the alpha of the status bar background.
-    // 0 = no status bar background shown
-    // 1 = status bar background is opaque
-    var scrollOffset: CGFloat {
-        // Status bar height can be 0 on iPhone in landscape mode.
-        guard let scrollView = collectionView,
-              isBottomSearchBar,
-              let statusBarHeight: CGFloat = statusBarFrame?.height,
-              statusBarHeight > 0
-        else { return 0 }
-
-        // The scrollview content offset is automatically adjusted to account for the status bar.
-        // We want to start showing the status bar background as soon as the user scrolls.
-        var offset: CGFloat
-        if CoordinatorFlagManager.isCoordinatorEnabled {
-            offset = scrollView.contentOffset.y / statusBarHeight
-        } else {
-            offset = (scrollView.contentOffset.y + statusBarHeight) / statusBarHeight
-        }
-
-        if offset > 1 {
-            offset = 1
-        } else if offset < 0 {
-            offset = 0
-        }
-        return offset
-    }
-
-    func updateStatusBar(theme: Theme) {
-        let backgroundColor = theme.colors.layer1
-        statusBarView.backgroundColor = backgroundColor.withAlphaComponent(scrollOffset)
-
-        if let statusBarFrame = statusBarFrame {
-            statusBarView.frame = statusBarFrame
-        }
     }
 }
 
@@ -809,10 +756,10 @@ extension HomepageViewController: HomepageViewModelDelegate {
 
             self.viewModel.refreshData(for: self.traitCollection, size: self.view.frame.size)
             self.collectionView.reloadData()
+            self.collectionView.collectionViewLayout.invalidateLayout()
             self.logger.log("Amount of sections shown is \(self.viewModel.shownSections.count)",
                             level: .debug,
                             category: .homepage)
-            self.collectionView.collectionViewLayout.invalidateLayout()
         }
     }
 }

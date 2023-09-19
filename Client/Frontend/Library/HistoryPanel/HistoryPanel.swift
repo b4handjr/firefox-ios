@@ -31,6 +31,7 @@ class HistoryPanel: UIViewController,
     typealias a11yIds = AccessibilityIdentifiers.LibraryPanels.HistoryPanel
 
     weak var libraryPanelDelegate: LibraryPanelDelegate?
+    weak var historyCoordinatorDelegate: HistoryCoordinatorDelegate?
     var recentlyClosedTabsDelegate: RecentlyClosedPanelDelegate?
     var state: LibraryPanelMainState
 
@@ -38,7 +39,7 @@ class HistoryPanel: UIViewController,
     let viewModel: HistoryPanelViewModel
     private let clearHistoryHelper: ClearHistorySheetProvider
     var keyboardState: KeyboardState?
-    var chevronImage = UIImage(named: ImageIdentifiers.Large.chevronRight)?.withRenderingMode(.alwaysTemplate)
+    var chevronImage = UIImage(named: StandardImageIdentifiers.Large.chevronRight)?.withRenderingMode(.alwaysTemplate)
     var themeManager: ThemeManager
     var themeObserver: NSObjectProtocol?
     var notificationCenter: NotificationProtocol
@@ -89,7 +90,7 @@ class HistoryPanel: UIViewController,
     }()
 
     private lazy var bottomDeleteButton: UIBarButtonItem = {
-        let button = UIBarButtonItem(image: UIImage.templateImageNamed(ImageIdentifiers.Large.delete),
+        let button = UIBarButtonItem(image: UIImage.templateImageNamed(StandardImageIdentifiers.Large.delete),
                                      style: .plain,
                                      target: self,
                                      action: #selector(bottomDeleteButtonAction))
@@ -105,7 +106,7 @@ class HistoryPanel: UIViewController,
         searchbar.delegate = self
     }
 
-    lazy private var tableView: UITableView = .build { [weak self] tableView in
+    private lazy var tableView: UITableView = .build { [weak self] tableView in
         guard let self = self else { return }
         tableView.dataSource = self.diffableDataSource
         tableView.addGestureRecognizer(self.longPressRecognizer)
@@ -134,9 +135,9 @@ class HistoryPanel: UIViewController,
     lazy var welcomeLabel: UILabel = .build { label in
         label.text = self.viewModel.emptyStateText
         label.textAlignment = .center
-        label.font = DynamicFontHelper.defaultHelper.preferredFont(withTextStyle: .body,
-                                                                   size: 17,
-                                                                   weight: .light)
+        label.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .body,
+                                                            size: 17,
+                                                            weight: .light)
         label.numberOfLines = 0
         label.adjustsFontSizeToFitWidth = true
     }
@@ -186,7 +187,9 @@ class HistoryPanel: UIViewController,
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-
+        if CoordinatorFlagManager.isLibraryCoordinatorEnabled {
+            viewModel.shouldResetHistory = true
+        }
         bottomStackView.isHidden = !viewModel.isSearchInProgress
         if viewModel.shouldResetHistory {
             fetchDataAndUpdateLayout()
@@ -194,6 +197,14 @@ class HistoryPanel: UIViewController,
         DispatchQueue.main.async {
             self.refreshRecentlyClosedCell()
         }
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+
+        TelemetryWrapper.recordEvent(category: .information,
+                                     method: .view,
+                                     object: .historyPanelOpened)
     }
 
     // MARK: - Private helpers
@@ -274,7 +285,7 @@ class HistoryPanel: UIViewController,
         return siteItem
     }
 
-    private func showClearRecentHistory() {
+    func showClearRecentHistory() {
         clearHistoryHelper.showClearRecentHistory(onViewController: self) { [weak self] dateOption in
             // Delete groupings that belong to THAT section.
             switch dateOption {
@@ -418,7 +429,9 @@ class HistoryPanel: UIViewController,
         cell.titleLabel.text = asGroup.displayTitle
         let imageView = UIImageView(image: chevronImage)
         cell.accessoryView = imageView
-        cell.leftImageView.image = UIImage(named: ImageIdentifiers.Large.tabTray)?.withTintColor(themeManager.currentTheme.colors.iconSecondary)
+        let tabTrayImage = UIImage(named: StandardImageIdentifiers.Large.tabTray) ?? UIImage()
+        let tintedTabTrayImage = tabTrayImage.withTintColor(themeManager.currentTheme.colors.iconSecondary)
+        cell.leftImageView.manuallySetImage(tintedTabTrayImage)
         cell.leftImageView.backgroundColor = themeManager.currentTheme.colors.layer5
         cell.applyTheme(theme: themeManager.currentTheme)
         return cell
@@ -482,6 +495,10 @@ class HistoryPanel: UIViewController,
         } else {
             applySnapshot(animatingDifferences: true)
         }
+
+        TelemetryWrapper.recordEvent(category: .action,
+                                     method: .swipe,
+                                     object: .historySingleItemRemoved)
     }
 
     func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
@@ -552,7 +569,7 @@ class HistoryPanel: UIViewController,
         tableView.backgroundColor = themeManager.currentTheme.colors.layer6
         searchbar.backgroundColor = themeManager.currentTheme.colors.layer3
         let tintColor = themeManager.currentTheme.colors.textPrimary
-        let searchBarImage = UIImage(named: ImageIdentifiers.Large.history)?
+        let searchBarImage = UIImage(named: StandardImageIdentifiers.Large.history)?
             .withRenderingMode(.alwaysTemplate)
             .tinted(withColor: tintColor)
         searchbar.setImage(searchBarImage, for: .search, state: .normal)
@@ -617,7 +634,13 @@ extension HistoryPanel: UITableViewDelegate {
         case .clearHistory:
             showClearRecentHistory()
         case .recentlyClosed:
-            navigateToRecentlyClosed()
+            if CoordinatorFlagManager.isLibraryCoordinatorEnabled {
+                guard viewModel.hasRecentlyClosed else { return }
+                refreshControl?.endRefreshing()
+                historyCoordinatorDelegate?.showRecentlyClosedTab()
+            } else {
+                navigateToRecentlyClosed()
+            }
         default: break
         }
     }
@@ -626,14 +649,16 @@ extension HistoryPanel: UITableViewDelegate {
         exitSearchState()
         updatePanelState(newState: .history(state: .inFolder))
 
-        let asGroupListViewModel = SearchGroupedItemsViewModel(asGroup: asGroupItem, presenter: .historyPanel)
-        let asGroupListVC = SearchGroupedItemsViewController(viewModel: asGroupListViewModel, profile: profile)
-        asGroupListVC.libraryPanelDelegate = libraryPanelDelegate
-        asGroupListVC.title = asGroupItem.displayTitle
-
+        if CoordinatorFlagManager.isLibraryCoordinatorEnabled {
+            historyCoordinatorDelegate?.showSearchGroupedItems(asGroupItem)
+        } else {
+            let asGroupListViewModel = SearchGroupedItemsViewModel(asGroup: asGroupItem, presenter: .historyPanel)
+            let asGroupListVC = SearchGroupedItemsViewController(viewModel: asGroupListViewModel, profile: profile)
+            asGroupListVC.libraryPanelDelegate = libraryPanelDelegate
+            asGroupListVC.title = asGroupItem.displayTitle
+            navigationController?.pushViewController(asGroupListVC, animated: true)
+        }
         TelemetryWrapper.recordEvent(category: .action, method: .navigate, object: .navigateToGroupHistory, value: nil, extras: nil)
-
-        navigationController?.pushViewController(asGroupListVC, animated: true)
     }
 
     @objc
@@ -742,8 +767,7 @@ extension HistoryPanel {
         updatePanelState(newState: .history(state: .mainView))
 
         TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .deleteHistory)
-        // TODO: Yoana remove notification and handle directly
-        NotificationCenter.default.post(name: .OpenClearRecentHistory, object: nil)
+        showClearRecentHistory()
     }
 
     // MARK: - User Interactions

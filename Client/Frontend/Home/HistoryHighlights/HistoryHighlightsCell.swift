@@ -19,14 +19,14 @@ class HistoryHighlightsCell: UICollectionViewCell, ReusableCell {
     let imageView: FaviconImageView = .build { imageView in }
 
     let itemTitle: UILabel = .build { label in
-        label.font = DynamicFontHelper.defaultHelper.preferredFont(withTextStyle: .body,
-                                                                   size: 15)
+        label.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .body,
+                                                            size: 15)
         label.adjustsFontForContentSizeCategory = true
     }
 
     let itemDescription: UILabel = .build { label in
-        label.font = DynamicFontHelper.defaultHelper.preferredFont(withTextStyle: .caption1,
-                                                                   size: 12)
+        label.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .caption1,
+                                                            size: 12)
         label.adjustsFontForContentSizeCategory = true
     }
 
@@ -88,7 +88,7 @@ class HistoryHighlightsCell: UICollectionViewCell, ReusableCell {
             let faviconViewModel = FaviconImageViewModel(siteURLString: url)
             imageView.setFavicon(faviconViewModel)
         } else {
-            imageView.image = UIImage.templateImageNamed(ImageIdentifiers.Large.tabTray)
+            imageView.manuallySetImage(UIImage.templateImageNamed(StandardImageIdentifiers.Large.tabTray) ?? UIImage())
         }
 
         applyTheme(theme: theme)
@@ -97,7 +97,6 @@ class HistoryHighlightsCell: UICollectionViewCell, ReusableCell {
     override func prepareForReuse() {
         super.prepareForReuse()
 
-        imageView.image = nil
         itemDescription.isHidden = true
 
         contentView.layer.shadowRadius = 0.0

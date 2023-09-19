@@ -13,7 +13,6 @@ class UpdateViewModel: OnboardingViewModelProtocol,
     var profile: Profile
     var hasSyncableAccount: Bool?
     var availableCards: [OnboardingCardViewController]
-    var infoPopup: OnboardingDefaultBrowserModelProtocol
     var isDismissable: Bool
     var telemetryUtility: OnboardingTelemetryProtocol
     private var cardModels: [OnboardingCardInfoModelProtocol]
@@ -22,9 +21,9 @@ class UpdateViewModel: OnboardingViewModelProtocol,
         return availableCards.count == 1
     }
 
-    // If the feature is enabled and is not clean install
+    // If the feature has cards available and is not clean install
     var shouldShowFeature: Bool {
-        return featureFlags.isFeatureEnabled(.onboardingUpgrade, checking: .buildOnly) && !isFreshInstall
+        return !cardModels.isEmpty && !isFreshInstall
     }
 
     var isFreshInstall: Bool {
@@ -40,7 +39,6 @@ class UpdateViewModel: OnboardingViewModelProtocol,
         self.profile = profile
         self.telemetryUtility = telemetryUtility
         self.cardModels = model.cards
-        self.infoPopup = model.infoPopupModel
         self.isDismissable = model.isDismissable
         self.availableCards = []
     }

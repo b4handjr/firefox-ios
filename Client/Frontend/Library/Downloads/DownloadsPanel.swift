@@ -19,6 +19,7 @@ class DownloadsPanel: UIViewController,
     }
 
     weak var libraryPanelDelegate: LibraryPanelDelegate?
+    weak var navigationHandler: DownloadsNavigationHandler?
     var state: LibraryPanelMainState
     var bottomToolbarItems: [UIBarButtonItem] = [UIBarButtonItem]()
     var themeManager: ThemeManager
@@ -223,16 +224,16 @@ class DownloadsPanel: UIViewController,
             view.translatesAutoresizingMaskIntoConstraints = false
         }
         let logoImageView: UIImageView = .build { imageView in
-            imageView.image = UIImage.templateImageNamed(ImageIdentifiers.Large.download)?
+            imageView.image = UIImage.templateImageNamed(StandardImageIdentifiers.Large.download)?
                 .withRenderingMode(.alwaysTemplate)
             imageView.tintColor = self.themeManager.currentTheme.colors.iconSecondary
         }
         let welcomeLabel: UILabel = .build { label in
             label.text = .DownloadsPanelEmptyStateTitle
             label.textAlignment = .center
-            label.font = DynamicFontHelper.defaultHelper.preferredFont(withTextStyle: .body,
-                                                                       size: 17,
-                                                                       weight: .light)
+            label.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .body,
+                                                                size: 17,
+                                                                weight: .light)
             label.textColor = self.themeManager.currentTheme.colors.textSecondary
             label.numberOfLines = 0
             label.adjustsFontSizeToFitWidth = true
@@ -299,7 +300,7 @@ class DownloadsPanel: UIViewController,
            let cell = cell as? TwoLineImageOverlayCell {
             cell.titleLabel.text = downloadedFile.filename
             cell.descriptionLabel.text = downloadedFile.formattedSize
-            cell.leftImageView.image = iconForFileExtension(downloadedFile.fileExtension)
+            cell.leftImageView.manuallySetImage(iconForFileExtension(downloadedFile.fileExtension) ?? UIImage())
             cell.applyTheme(theme: themeManager.currentTheme)
         }
         return cell
@@ -310,19 +311,27 @@ class DownloadsPanel: UIViewController,
 
         if let downloadedFile = viewModel.downloadedFileForIndexPath(indexPath) {
             TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .download, value: .downloadsPanel)
-
             if downloadedFile.mimeType == MIMEType.Calendar {
-                let docController = UIDocumentInteractionController(url: downloadedFile.path)
-                docController.delegate = self
-                docController.presentPreview(animated: true)
+                if CoordinatorFlagManager.isLibraryCoordinatorEnabled {
+                    navigationHandler?.showDocument(file: downloadedFile)
+                } else {
+                    let docController = UIDocumentInteractionController(url: downloadedFile.path)
+                    docController.delegate = self
+                    docController.presentPreview(animated: true)
+                }
                 return
             }
 
-            guard downloadedFile.canShowInWebView else {
-                shareDownloadedFile(downloadedFile, indexPath: indexPath)
-                return
+            if CoordinatorFlagManager.isLibraryCoordinatorEnabled {
+                let cell = tableView.cellForRow(at: indexPath)
+                navigationHandler?.handleFile(downloadedFile, sourceView: cell ?? UIView())
+            } else {
+                guard downloadedFile.canShowInWebView else {
+                    shareDownloadedFile(downloadedFile, indexPath: indexPath)
+                    return
+                }
+                libraryPanelDelegate?.libraryPanel(didSelectURL: downloadedFile.path, visitType: VisitType.typed)
             }
-            libraryPanelDelegate?.libraryPanel(didSelectURL: downloadedFile.path, visitType: VisitType.typed)
         }
     }
 

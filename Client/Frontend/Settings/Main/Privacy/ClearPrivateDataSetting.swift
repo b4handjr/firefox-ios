@@ -27,14 +27,6 @@ class ClearPrivateDataSetting: Setting {
     }
 
     override func onClick(_ navigationController: UINavigationController?) {
-        if CoordinatorFlagManager.isSettingsCoordinatorEnabled {
-            settingsDelegate?.pressedClearPrivateData()
-            return
-        }
-
-        let viewController = ClearPrivateDataTableViewController()
-        viewController.profile = profile
-        viewController.tabManager = tabManager
-        navigationController?.pushViewController(viewController, animated: true)
+        settingsDelegate?.pressedClearPrivateData()
     }
 }

@@ -16,7 +16,6 @@ protocol PhotonActionSheetProtocol {
 
 extension PhotonActionSheetProtocol {
     typealias PresentableVC = UIViewController & UIPopoverPresentationControllerDelegate
-    typealias MenuActionsDelegate = QRCodeViewControllerDelegate & SettingsDelegate & PresentingModalViewControllerDelegate & UIViewController
 
     func presentSheetWith(viewModel: PhotonActionSheetViewModel,
                           on viewController: PresentableVC,
@@ -42,7 +41,7 @@ extension PhotonActionSheetProtocol {
 
     func getLongPressLocationBarActions(with urlBar: URLBarView, alertContainer: UIView) -> [PhotonRowActions] {
         let pasteGoAction = SingleActionViewModel(title: .PasteAndGoTitle,
-                                                  iconString: ImageIdentifiers.Large.clipboard) { _ in
+                                                  iconString: StandardImageIdentifiers.Large.clipboard) { _ in
             if let pasteboardContents = UIPasteboard.general.string {
                 urlBar.delegate?.urlBar(urlBar, didSubmitText: pasteboardContents)
             }
@@ -50,7 +49,7 @@ extension PhotonActionSheetProtocol {
         pasteGoAction.accessibilityId = AccessibilityIdentifiers.Photon.pasteAndGoAction
 
         let pasteAction = SingleActionViewModel(title: .PasteTitle,
-                                                iconString: ImageIdentifiers.Large.clipboard) { _ in
+                                                iconString: StandardImageIdentifiers.Large.clipboard) { _ in
             if let pasteboardContents = UIPasteboard.general.string {
                 urlBar.enterOverlayMode(pasteboardContents, pasted: true, search: true)
             }
@@ -58,7 +57,7 @@ extension PhotonActionSheetProtocol {
         pasteAction.accessibilityId = AccessibilityIdentifiers.Photon.pasteAction
 
         let copyAddressAction = SingleActionViewModel(title: .CopyAddressTitle,
-                                                      iconString: ImageIdentifiers.Large.link) { _ in
+                                                      iconString: StandardImageIdentifiers.Large.link) { _ in
             if let url = tabManager.selectedTab?.canonicalURL?.displayURL ?? urlBar.currentURL {
                 UIPasteboard.general.url = url
                 SimpleToast().showAlertWithText(.AppMenu.AppMenuCopyURLConfirmMessage,
@@ -86,7 +85,8 @@ extension PhotonActionSheetProtocol {
         } else {
             toggleActionTitle = tab.changedUserAgent ? .AppMenu.AppMenuViewMobileSiteTitleString : .AppMenu.AppMenuViewDesktopSiteTitleString
         }
-        let toggleDesktopSite = SingleActionViewModel(title: toggleActionTitle, iconString: ImageIdentifiers.Large.deviceDesktop) { _ in
+        let toggleDesktopSite = SingleActionViewModel(title: toggleActionTitle,
+                                                      iconString: StandardImageIdentifiers.Large.deviceDesktop) { _ in
             if let url = tab.url {
                 tab.toggleChangeUserAgent()
                 Tab.ChangeUserAgent.updateDomainList(forUrl: url, isChangedUA: tab.changedUserAgent, isPrivate: tab.isPrivate)

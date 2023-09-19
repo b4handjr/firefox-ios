@@ -8,7 +8,16 @@ import WebKit
 import Shared
 import Storage
 
-class BrowserCoordinator: BaseCoordinator, LaunchCoordinatorDelegate, BrowserDelegate, SettingsCoordinatorDelegate, BrowserNavigationHandler, LibraryCoordinatorDelegate, EnhancedTrackingProtectionCoordinatorDelegate, ParentCoordinatorDelegate {
+class BrowserCoordinator: BaseCoordinator,
+                          LaunchCoordinatorDelegate,
+                          BrowserDelegate,
+                          SettingsCoordinatorDelegate,
+                          BrowserNavigationHandler,
+                          LibraryCoordinatorDelegate,
+                          EnhancedTrackingProtectionCoordinatorDelegate,
+                          FakespotCoordinatorDelegate,
+                          ParentCoordinatorDelegate,
+                          TabManagerDelegate {
     var browserViewController: BrowserViewController
     var webviewController: WebviewViewController?
     var homepageViewController: HomepageViewController?
@@ -20,7 +29,6 @@ class BrowserCoordinator: BaseCoordinator, LaunchCoordinatorDelegate, BrowserDel
     private let glean: GleanWrapper
     private let applicationHelper: ApplicationHelper
     private let wallpaperManager: WallpaperManagerInterface
-    private let isSettingsCoordinatorEnabled: Bool
     private var browserIsReady = false
 
     init(router: Router,
@@ -30,8 +38,7 @@ class BrowserCoordinator: BaseCoordinator, LaunchCoordinatorDelegate, BrowserDel
          themeManager: ThemeManager = AppContainer.shared.resolve(),
          glean: GleanWrapper = DefaultGleanWrapper.shared,
          applicationHelper: ApplicationHelper = DefaultApplicationHelper(),
-         wallpaperManager: WallpaperManagerInterface = WallpaperManager(),
-         isSettingsCoordinatorEnabled: Bool = CoordinatorFlagManager.isSettingsCoordinatorEnabled) {
+         wallpaperManager: WallpaperManagerInterface = WallpaperManager()) {
         self.screenshotService = screenshotService
         self.profile = profile
         self.tabManager = tabManager
@@ -40,11 +47,11 @@ class BrowserCoordinator: BaseCoordinator, LaunchCoordinatorDelegate, BrowserDel
         self.applicationHelper = applicationHelper
         self.glean = glean
         self.wallpaperManager = wallpaperManager
-        self.isSettingsCoordinatorEnabled = isSettingsCoordinatorEnabled
         super.init(router: router)
 
         browserViewController.browserDelegate = self
         browserViewController.navigationHandler = self
+        tabManager.addDelegate(self)
     }
 
     func start(with launchType: LaunchType?) {
@@ -83,12 +90,14 @@ class BrowserCoordinator: BaseCoordinator, LaunchCoordinatorDelegate, BrowserDel
                       homepanelDelegate: HomePanelDelegate,
                       libraryPanelDelegate: LibraryPanelDelegate,
                       sendToDeviceDelegate: HomepageViewController.SendToDeviceDelegate,
+                      statusBarScrollDelegate: StatusBarScrollDelegate,
                       overlayManager: OverlayModeManager) {
         let homepageController = getHomepage(inline: inline,
                                              toastContainer: toastContainer,
                                              homepanelDelegate: homepanelDelegate,
                                              libraryPanelDelegate: libraryPanelDelegate,
                                              sendToDeviceDelegate: sendToDeviceDelegate,
+                                             statusBarScrollDelegate: statusBarScrollDelegate,
                                              overlayManager: overlayManager)
 
         guard browserViewController.embedContent(homepageController) else { return }
@@ -126,8 +135,10 @@ class BrowserCoordinator: BaseCoordinator, LaunchCoordinatorDelegate, BrowserDel
                              homepanelDelegate: HomePanelDelegate,
                              libraryPanelDelegate: LibraryPanelDelegate,
                              sendToDeviceDelegate: HomepageViewController.SendToDeviceDelegate,
+                             statusBarScrollDelegate: StatusBarScrollDelegate,
                              overlayManager: OverlayModeManager) -> HomepageViewController {
         if let homepageViewController = homepageViewController {
+            homepageViewController.configure(isZeroSearch: inline)
             return homepageViewController
         } else {
             let homepageViewController = HomepageViewController(
@@ -138,6 +149,7 @@ class BrowserCoordinator: BaseCoordinator, LaunchCoordinatorDelegate, BrowserDel
             homepageViewController.homePanelDelegate = homepanelDelegate
             homepageViewController.libraryPanelDelegate = libraryPanelDelegate
             homepageViewController.sendToDeviceDelegate = sendToDeviceDelegate
+            homepageViewController.statusBarScrollDelegate = statusBarScrollDelegate
             if CoordinatorFlagManager.isShareExtensionCoordinatorEnabled {
                 homepageViewController.browserNavigationHandler = self
             }
@@ -148,8 +160,12 @@ class BrowserCoordinator: BaseCoordinator, LaunchCoordinatorDelegate, BrowserDel
     // MARK: - Route handling
 
     override func handle(route: Route) -> Bool {
-        guard browserIsReady else {
-            logger.log("Could not handle route, wasn't ready", level: .info, category: .coordinator)
+        guard browserIsReady, !tabManager.isRestoringTabs else {
+            let readyMessage = "browser is ready? \(browserIsReady)"
+            let restoringMessage = "is restoring tabs? \(tabManager.isRestoringTabs)"
+            logger.log("Could not handle route, \(readyMessage), \(restoringMessage)",
+                       level: .info,
+                       category: .coordinator)
             return false
         }
 
@@ -176,13 +192,7 @@ class BrowserCoordinator: BaseCoordinator, LaunchCoordinatorDelegate, BrowserDel
             return true
 
         case let .settings(section):
-            // 'Else' case will be removed with FXIOS-6529
-            if isSettingsCoordinatorEnabled {
-                return handleSettings(with: section)
-            } else {
-                handle(settingsSection: section)
-                return true
-            }
+            return handleSettings(with: section)
 
         case let .action(routeAction):
             switch routeAction {
@@ -267,7 +277,9 @@ class BrowserCoordinator: BaseCoordinator, LaunchCoordinatorDelegate, BrowserDel
         }
 
         let navigationController = ThemedNavigationController()
-        navigationController.modalPresentationStyle = .formSheet
+        let isPad = UIDevice.current.userInterfaceIdiom == .pad
+        let modalPresentationStyle: UIModalPresentationStyle = isPad ? .fullScreen: .formSheet
+        navigationController.modalPresentationStyle = modalPresentationStyle
         let settingsRouter = DefaultRouter(navigationController: navigationController)
 
         let settingsCoordinator = SettingsCoordinator(router: settingsRouter)
@@ -300,18 +312,11 @@ class BrowserCoordinator: BaseCoordinator, LaunchCoordinatorDelegate, BrowserDel
         }
     }
 
-    private func showETPMenu() {
-        let navigationController = DismissableNavigationViewController()
-        navigationController.modalPresentationStyle = .formSheet
-        let etpRouter = DefaultRouter(navigationController: navigationController)
-        let enhancedTrackingProtectionCoordinator = EnhancedTrackingProtectionCoordinator(router: etpRouter)
+    private func showETPMenu(sourceView: UIView) {
+        let enhancedTrackingProtectionCoordinator = EnhancedTrackingProtectionCoordinator(router: router)
         enhancedTrackingProtectionCoordinator.parentCoordinator = self
         add(child: enhancedTrackingProtectionCoordinator)
-        enhancedTrackingProtectionCoordinator.start()
-
-        router.present(navigationController) { [weak self] in
-            self?.didFinishEnhancedTrackingProtection(from: enhancedTrackingProtectionCoordinator)
-        }
+        enhancedTrackingProtectionCoordinator.start(sourceView: sourceView)
     }
 
     // MARK: - SettingsCoordinatorDelegate
@@ -330,6 +335,7 @@ class BrowserCoordinator: BaseCoordinator, LaunchCoordinatorDelegate, BrowserDel
         router.dismiss(animated: true, completion: nil)
         remove(child: coordinator)
     }
+
     // MARK: - EnhancedTrackingProtectionCoordinatorDelegate
 
     func didFinishEnhancedTrackingProtection(from coordinator: EnhancedTrackingProtectionCoordinator) {
@@ -338,7 +344,7 @@ class BrowserCoordinator: BaseCoordinator, LaunchCoordinatorDelegate, BrowserDel
     }
 
     func settingsOpenPage(settings: Route.SettingsSection) {
-        handleSettings(with: settings)
+        _ = handleSettings(with: settings)
     }
 
     // MARK: - BrowserNavigationHandler
@@ -365,8 +371,18 @@ class BrowserCoordinator: BaseCoordinator, LaunchCoordinatorDelegate, BrowserDel
         showLibrary(with: homepanelSection)
     }
 
-    func showEnhancedTrackingProtection() {
-        showETPMenu()
+    func showEnhancedTrackingProtection(sourceView: UIView) {
+        showETPMenu(sourceView: sourceView)
+    }
+
+    func showFakespotFlow(productURL: URL) {
+        guard !childCoordinators.contains(where: { $0 is FakespotCoordinator}) else {
+            return // flow is already handled
+        }
+        let coordinator = FakespotCoordinator(router: router)
+        coordinator.parentCoordinator = self
+        add(child: coordinator)
+        coordinator.start(productURL: productURL)
     }
 
     func showShareExtension(url: URL, sourceView: UIView, toastContainer: UIView, popoverArrowDirection: UIPopoverArrowDirection) {
@@ -380,128 +396,53 @@ class BrowserCoordinator: BaseCoordinator, LaunchCoordinatorDelegate, BrowserDel
         shareExtensionCoordinator.start(url: url, sourceView: sourceView, popoverArrowDirection: popoverArrowDirection)
     }
 
-    // MARK: - To be removed with FXIOS-6529
-    private func handle(settingsSection: Route.SettingsSection) {
-        // Temporary bugfix for #14954, real fix is with settings coordinator
-        if let subNavigationController = router.navigationController.presentedViewController as? ThemedNavigationController,
-           let settings = subNavigationController.viewControllers.first as? AppSettingsTableViewController {
-            // Showing settings already, pass the deeplink down
-            if let deeplinkTo = settingsSection.getSettingsRoute() {
-                settings.deeplinkTo = deeplinkTo
-                settings.checkForDeeplinkSetting()
-            }
-            return
-        }
-
-        let baseSettingsVC = AppSettingsTableViewController(
-            with: profile,
-            and: tabManager,
-            delegate: browserViewController
-        )
-
-        let controller = ThemedNavigationController(rootViewController: baseSettingsVC)
-        controller.presentingModalViewControllerDelegate = browserViewController
-        controller.modalPresentationStyle = .formSheet
-        router.present(controller)
-
-        getSettingsViewController(settingsSection: settingsSection) { viewController in
-            guard let viewController else { return }
-            controller.pushViewController(viewController, animated: true)
-        }
+    func showCreditCardAutofill(creditCard: CreditCard?,
+                                decryptedCard: UnencryptedCreditCardFields?,
+                                viewType state: CreditCardBottomSheetState,
+                                frame: WKFrameInfo?,
+                                alertContainer: UIView) {
+        let bottomSheetCoordinator = makeCredentialAutofillCoordinator()
+        bottomSheetCoordinator.showCreditCardAutofill(creditCard: creditCard, decryptedCard: decryptedCard, viewType: state, frame: frame, alertContainer: alertContainer)
     }
 
-    // Will be removed with FXIOS-6529
-    func getSettingsViewController(settingsSection section: Route.SettingsSection,
-                                   completion: @escaping (UIViewController?) -> Void) {
-        switch section {
-        case .newTab:
-            let viewController = NewTabContentSettingsViewController(prefs: profile.prefs)
-            viewController.profile = profile
-            completion(viewController)
+    func showRequiredPassCode() {
+        let bottomSheetCoordinator = makeCredentialAutofillCoordinator()
+        bottomSheetCoordinator.showPassCodeController()
+    }
 
-        case .homePage:
-            let viewController = HomePageSettingViewController(prefs: profile.prefs)
-            viewController.profile = profile
-            completion(viewController)
-
-        case .mailto:
-            let viewController = OpenWithSettingsViewController(prefs: profile.prefs)
-            completion(viewController)
-
-        case .search:
-            let viewController = SearchSettingsTableViewController(profile: profile)
-            completion(viewController)
-
-        case .clearPrivateData:
-            let viewController = ClearPrivateDataTableViewController()
-            viewController.profile = profile
-            viewController.tabManager = tabManager
-            completion(viewController)
-
-        case .fxa:
-            let fxaParams = FxALaunchParams(entrypoint: .fxaDeepLinkSetting, query: [:])
-            let viewController = FirefoxAccountSignInViewController.getSignInOrFxASettingsVC(
-                fxaParams,
-                flowType: .emailLoginFlow,
-                referringPage: .settings,
-                profile: browserViewController.profile
-            )
-            completion(viewController)
-
-        case .theme:
-            completion(ThemeSettingsController())
-
-        case .wallpaper:
-            if wallpaperManager.canSettingsBeShown {
-                let viewModel = WallpaperSettingsViewModel(
-                    wallpaperManager: wallpaperManager,
-                    tabManager: tabManager,
-                    theme: themeManager.currentTheme
-                )
-                let wallpaperVC = WallpaperSettingsViewController(viewModel: viewModel)
-                completion(wallpaperVC)
-            } else {
-                completion(nil)
-            }
-
-        case .creditCard:
-            let viewModel = CreditCardSettingsViewModel(profile: profile)
-            let viewController = CreditCardSettingsViewController(
-                creditCardViewModel: viewModel)
-            let appAuthenticator = AppAuthenticator()
-            if appAuthenticator.canAuthenticateDeviceOwner {
-                appAuthenticator.authenticateWithDeviceOwnerAuthentication { result in
-                    switch result {
-                    case .success:
-                        completion(viewController)
-                    case .failure:
-                        break
-                    }
-                }
-            } else {
-                let passcodeViewController = DevicePasscodeRequiredViewController()
-                passcodeViewController.profile = profile
-                completion(passcodeViewController)
-            }
-
-        default:
-            completion(nil)
+    private func makeCredentialAutofillCoordinator() -> CredentialAutofillCoordinator {
+        if let bottomSheetCoordinator = childCoordinators.first(where: { $0 is CredentialAutofillCoordinator }) as? CredentialAutofillCoordinator {
+            return bottomSheetCoordinator
         }
+        let bottomSheetCoordinator = CredentialAutofillCoordinator(profile: profile, router: router, parentCoordinator: self)
+        add(child: bottomSheetCoordinator)
+        return bottomSheetCoordinator
     }
 
     // MARK: - LibraryPanelDelegate
 
     func libraryPanelDidRequestToOpenInNewTab(_ url: URL, isPrivate: Bool) {
         browserViewController.libraryPanelDidRequestToOpenInNewTab(url, isPrivate: isPrivate)
+        router.dismiss()
     }
 
     func libraryPanel(didSelectURL url: URL, visitType: Storage.VisitType) {
         browserViewController.libraryPanel(didSelectURL: url, visitType: visitType)
+        router.dismiss()
     }
 
     // MARK: - ParentCoordinatorDelegate
 
     func didFinish(from childCoordinator: Coordinator) {
         remove(child: childCoordinator)
+    }
+
+    // MARK: - TabManagerDelegate
+
+    func tabManagerDidRestoreTabs(_ tabManager: TabManager) {
+        // Once tab restore is made, if there's any saved route we make sure to call it
+        if let savedRoute {
+            findAndHandle(route: savedRoute)
+        }
     }
 }

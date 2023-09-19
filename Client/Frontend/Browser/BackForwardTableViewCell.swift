@@ -110,7 +110,7 @@ class BackForwardTableViewCell: UITableViewCell, ReusableCell, ThemeApplicable {
 
         if let url = URL(string: viewModel.site.url),
            InternalURL(url)?.isAboutHomeURL == true {
-            faviconView.image = UIImage(named: ImageIdentifiers.firefoxFavicon)
+            faviconView.manuallySetImage(UIImage(named: ImageIdentifiers.firefoxFavicon) ?? UIImage())
         } else {
             faviconView.setFavicon(FaviconImageViewModel(siteURLString: viewModel.site.url,
                                                          faviconCornerRadius: UX.faviconCornerRadius))
@@ -118,11 +118,11 @@ class BackForwardTableViewCell: UITableViewCell, ReusableCell, ThemeApplicable {
 
         label.text = viewModel.cellTittle
         if viewModel.isCurrentTab {
-            label.font = DynamicFontHelper.defaultHelper.preferredBoldFont(withTextStyle: .body,
-                                                                           size: UX.fontSize)
+            label.font = DefaultDynamicFontHelper.preferredBoldFont(withTextStyle: .body,
+                                                                    size: UX.fontSize)
         } else {
-            label.font = DynamicFontHelper.defaultHelper.preferredFont(withTextStyle: .body,
-                                                                       size: UX.fontSize)
+            label.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .body,
+                                                                size: UX.fontSize)
         }
         setNeedsLayout()
         applyTheme(theme: theme)

@@ -24,19 +24,6 @@ extension UILabel {
         }
         attributedText = attributed
     }
-
-    func heightForLabel(_ label: UILabel, width: CGFloat, text: String?) -> CGFloat {
-        guard let text = text else { return 0 }
-
-        let size = CGSize(width: width, height: CGFloat.greatestFiniteMagnitude)
-        let attrs = [NSAttributedString.Key.font: label.font as Any]
-        let boundingRect = NSString(string: text).boundingRect(
-            with: size,
-            options: .usesLineFragmentOrigin,
-            attributes: attrs,
-            context: nil)
-        return boundingRect.height
-    }
 }
 
 // A base setting class that shows a title. You probably want to subclass this, not use it directly.
@@ -124,16 +111,6 @@ class Setting: NSObject {
 
     // Called when the pref is long-pressed.
     func onLongPress(_ navigationController: UINavigationController?) { return }
-
-    // Helper method to set up and push a SettingsContentViewController
-    func setUpAndPushSettingsContentViewController(_ navigationController: UINavigationController?, _ url: URL? = nil) {
-        if let url = self.url {
-            let viewController = SettingsContentViewController()
-            viewController.settingsTitle = self.title
-            viewController.url = url
-            navigationController?.pushViewController(viewController, animated: true)
-        }
-    }
 
     init(title: NSAttributedString? = nil, footerTitle: NSAttributedString? = nil, cellHeight: CGFloat? = nil, delegate: SettingsDelegate? = nil, enabled: Bool? = nil) {
         self._title = title
@@ -533,7 +510,7 @@ class StringSetting: Setting, UITextFieldDelegate {
         cell.accessibilityTraits = UIAccessibilityTraits.none
         cell.contentView.addSubview(textField)
 
-        textField.font = DynamicFontHelper.defaultHelper.DefaultStandardFont
+        textField.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .body, size: 17, weight: .regular)
 
         textField.snp.makeConstraints { make in
             make.height.equalTo(44)
@@ -678,7 +655,11 @@ class ButtonSetting: Setting {
     let destructive: Bool
     let isEnabled: (() -> Bool)?
 
-    init(title: NSAttributedString?, destructive: Bool = false, accessibilityIdentifier: String, isEnabled: (() -> Bool)? = nil, onClick: @escaping (UINavigationController?) -> Void) {
+    init(title: NSAttributedString?,
+         destructive: Bool = false,
+         accessibilityIdentifier: String,
+         isEnabled: (() -> Bool)? = nil,
+         onClick: @escaping (UINavigationController?) -> Void) {
         self.onButtonClick = onClick
         self.destructive = destructive
         self.isEnabled = isEnabled
@@ -802,7 +783,9 @@ class SettingsTableViewController: ThemedTableViewController {
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
 
-        [Notification.Name.ProfileDidStartSyncing, Notification.Name.ProfileDidFinishSyncing, Notification.Name.FirefoxAccountChanged].forEach { name in
+        [Notification.Name.ProfileDidStartSyncing,
+         Notification.Name.ProfileDidFinishSyncing,
+         Notification.Name.FirefoxAccountChanged].forEach { name in
             NotificationCenter.default.removeObserver(self, name: name, object: nil)
         }
     }

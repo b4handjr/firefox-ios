@@ -1,12 +1,4 @@
 ---
-autopush-feature:
-  description: This property defines the autopush feature configuration
-  hasExposure: true
-  exposureDescription: ""
-  variables:
-    use-new-autopush-client:
-      type: boolean
-      description: "If true, the autopush client based on the Rust component will be used"
 contextual-hint-feature:
   description: This set holds all features pertaining to contextual hints.
   hasExposure: true
@@ -15,8 +7,8 @@ contextual-hint-feature:
     features-enabled:
       type: json
       description: "This property provides a lookup table of whether specific contextual hints are enabled.\n"
-coordinators-refactor-feature:
-  description: "This feature is for managing the roll out of the new navigation system as part of the coordinators project\n"
+credential-autofill-coordinator-refactor:
+  description: "This feature manages the roll out of the credential autofill coordinator as part of the coordinator refactor.\n"
   hasExposure: true
   exposureDescription: ""
   variables:
@@ -31,14 +23,6 @@ credit-card-autofill:
     credit-card-autofill-status:
       type: boolean
       description: "If true, we will allow user to use the credit autofill feature"
-engagement-notification-feature:
-  description: "The feature that controls the engagement notifications.\n"
-  hasExposure: true
-  exposureDescription: ""
-  variables:
-    engagement-notification-feature-status:
-      type: boolean
-      description: "If true, we will allow user to use the engagement notification feature"
 etp-coordinator-refactor:
   description: "This feature is for managing the roll out of the ETP coordinator code as part of the changes on the navigation in the app\n"
   hasExposure: true
@@ -52,13 +36,7 @@ general-app-features:
   hasExposure: true
   exposureDescription: ""
   variables:
-    pull-to-refresh:
-      type: json
-      description: This property defines whether or not the feature is enabled
     report-site-issue:
-      type: json
-      description: This property defines whether or not the feature is enabled
-    shake-to-restore:
       type: json
       description: This property defines whether or not the feature is enabled
 homescreenFeature:
@@ -66,18 +44,12 @@ homescreenFeature:
   hasExposure: true
   exposureDescription: ""
   variables:
-    jump-back-in-synced-tab:
-      type: boolean
-      description: "This property defines whether the synced tab card appears on the homepage in the jump back in section.\n"
     pocket-sponsored-stories:
       type: boolean
       description: "This property defines whether pocket sponsored stories appear on the homepage.\n"
     sections-enabled:
       type: json
       description: "This property provides a lookup table of whether or not the given section should be enabled. If the section is enabled, it should be toggleable in the settings screen, and on by default.\n"
-    sponsored-tiles:
-      type: json
-      description: "This property defines the sponsored tile feature on the homepage, which is not a section therein.\n"
 library-coordinator-refactor:
   description: "This feature is for managing the roll out of the library coordinator code as part of the changes on the navigation in the app\n"
   hasExposure: true
@@ -94,6 +66,9 @@ messaging:
     actions:
       type: json
       description: A growable map of action URLs.
+    message-under-experiment:
+      type: string
+      description: "Deprecated. Please use \"experiment\": \"{experiment}\" instead."
     messages:
       type: json
       description: "A growable collection of messages, where the Key is the message identifier and the value is its associated MessageData.\n"
@@ -109,25 +84,6 @@ messaging:
     triggers:
       type: json
       description: "A collection of out the box trigger expressions. Each entry maps to a valid JEXL expression.\n"
-notification-settings-feature:
-  description: "The feature that controls the notifications menu in Settings.\n"
-  hasExposure: true
-  exposureDescription: ""
-  variables:
-    notification-settings-feature-status:
-      type: boolean
-      description: "If true, we will allow user to use the the notifications menu in Settings"
-onboarding-feature:
-  description: The feature that controls whether to show or not Upgrade onboarding
-  hasExposure: true
-  exposureDescription: ""
-  variables:
-    first-run-flow:
-      type: boolean
-      description: "If true, we show the new Onboarding screen when the user for v106 version.\n"
-    upgrade-flow:
-      type: boolean
-      description: "If true, we show the Upgrade onboarding screen when the user upgrades the version.\n"
 onboarding-framework-feature:
   description: "The new onboarding framework feature that will allow onboarding to be experimentable through initial experiments.\n"
   hasExposure: true
@@ -142,9 +98,14 @@ onboarding-framework-feature:
     dismissable:
       type: boolean
       description: "Whether or not the entire onboarding is dismissable by pressing an X at the top right corner of the screen.\n"
-    instruction-popup:
-      type: json
-      description: "The contents of the instruction popup.\n"
+private-browsing:
+  description: Private Browsing Mode
+  hasExposure: true
+  exposureDescription: ""
+  variables:
+    felt-privacy-enabled:
+      type: boolean
+      description: "If true, enable felt privacy related UI"
 redux-integration-feature:
   description: "This feature is for managing the roll out of the Redux integration feature\n"
   hasExposure: true
@@ -169,14 +130,6 @@ search-term-groups-feature:
     grouping-enabled:
       type: json
       description: This property provides a lookup table of whether or not the given grouping should be enabled.
-settings-coordinator-refactor:
-  description: "This feature is for managing the roll out of the settings coordinator code as part of the changes on the navigation in the app\n"
-  hasExposure: true
-  exposureDescription: ""
-  variables:
-    enabled:
-      type: boolean
-      description: "Enables the feature\n"
 share-extension-coordinator-refactor:
   description: "This feature is for managing the roll out of the share extension coordinator as part of the changes to the navigation in the app\n"
   hasExposure: true
@@ -196,6 +149,17 @@ share-sheet:
     toolbar-changes:
       type: boolean
       description: If true share option is shown on the toolbar
+shopping2023:
+  description: "The configuration setting for the status of the Fakespot feature\n"
+  hasExposure: true
+  exposureDescription: ""
+  variables:
+    config:
+      type: json
+      description: "A Map of website configurations\n"
+    status:
+      type: boolean
+      description: "Whether the Fakespot feature is enabled or disabled\n"
 spotlight-search:
   description: Add pages as items findable with Spotlight.
   hasExposure: true
@@ -225,8 +189,8 @@ start-at-home-feature:
         - after-four-hours
         - always
         - disabled
-tab-storage-refactor-feature:
-  description: "This feature is for managing the roll out of the new tab storage mechanism as part of the tab refactor project\n"
+tab-tray-refactor-feature:
+  description: "This feature is for managing the roll out of the Tab Tray refactor feature\n"
   hasExposure: true
   exposureDescription: ""
   variables:

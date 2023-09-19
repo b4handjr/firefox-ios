@@ -6,7 +6,7 @@ import Foundation
 import Redux
 
 enum AppScreenState: Equatable {
-   case themeSettings(ThemeSettingsState)
+    case themeSettings(ThemeSettingsState)
 
     static let reducer: Reducer<Self> = { state, action in
         switch state {
@@ -31,12 +31,15 @@ struct ActiveScreensState: Equatable {
 
         if let action = action as? ActiveScreensStateAction {
             switch action {
-            case .showThemeSettings(.themeSettings):
-                screens = [.themeSettings(ThemeSettingsState())]
-            case .closeThemeSettings(.themeSettings):
-                break
+            case .showScreen(.themeSettings):
+                screens += [.themeSettings(ThemeSettingsState())]
+            case .closeScreen(.themeSettings):
+                screens = []
             }
         }
+
+        // Reduce each screen state
+        screens = screens.map { AppScreenState.reducer($0, action) }
 
         return ActiveScreensState(screens: screens)
     }

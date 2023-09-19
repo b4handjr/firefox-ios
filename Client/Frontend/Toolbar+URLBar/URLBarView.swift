@@ -46,6 +46,7 @@ protocol URLBarDelegate: AnyObject {
     func urlBarDisplayTextForURL(_ url: URL?) -> (String?, Bool)
     func urlBarDidBeginDragInteraction(_ urlBar: URLBarView)
     func urlBarDidPressShare(_ urlBar: URLBarView, shareView: UIView)
+    func urlBarDidPressShopping(_ urlBar: URLBarView, shoppingButton: UIButton)
 }
 
 protocol URLBarViewProtocol {
@@ -63,14 +64,14 @@ extension URLBarViewProtocol {
 class URLBarView: UIView, URLBarViewProtocol, AlphaDimmable, TopBottomInterchangeable,
                     SearchEngineDelegate, SearchBarLocationProvider {
     // Additional UIAppearance-configurable properties
-    @objc lazy dynamic var locationBorderColor: UIColor = .clear {
+    @objc dynamic lazy var locationBorderColor: UIColor = .clear {
         didSet {
             if !inOverlayMode {
                 locationContainer.layer.borderColor = locationBorderColor.cgColor
             }
         }
     }
-    @objc lazy dynamic var locationActiveBorderColor: UIColor = .clear {
+    @objc dynamic lazy var locationActiveBorderColor: UIColor = .clear {
         didSet {
             if inOverlayMode {
                 locationContainer.layer.borderColor = locationActiveBorderColor.cgColor
@@ -137,7 +138,7 @@ class URLBarView: UIView, URLBarViewProtocol, AlphaDimmable, TopBottomInterchang
     fileprivate lazy var cancelButton: UIButton = {
         let cancelButton = InsetButton()
         cancelButton.setImage(
-            UIImage.templateImageNamed(ImageIdentifiers.Large.chevronLeft)?.imageFlippedForRightToLeftLayoutDirection(),
+            UIImage.templateImageNamed(StandardImageIdentifiers.Large.chevronLeft)?.imageFlippedForRightToLeftLayoutDirection(),
             for: .normal)
         cancelButton.accessibilityIdentifier = AccessibilityIdentifiers.Browser.UrlBar.cancelButton
         cancelButton.accessibilityLabel = AccessibilityIdentifiers.GeneralizedIdentifiers.back
@@ -148,7 +149,7 @@ class URLBarView: UIView, URLBarViewProtocol, AlphaDimmable, TopBottomInterchang
 
     fileprivate lazy var showQRScannerButton: InsetButton = {
         let button = InsetButton()
-        button.setImage(UIImage.templateImageNamed(ImageIdentifiers.Large.qrCode), for: .normal)
+        button.setImage(UIImage.templateImageNamed(StandardImageIdentifiers.Large.qrCode), for: .normal)
         button.accessibilityIdentifier = AccessibilityIdentifiers.Browser.UrlBar.scanQRCodeButton
         button.accessibilityLabel = .ScanQRCodeViewTitle
         button.clipsToBounds = false
@@ -756,6 +757,10 @@ extension URLBarView: TabLocationViewDelegate {
 
     func tabLocationViewDidTapShare(_ tabLocationView: TabLocationView, button: UIButton) {
         delegate?.urlBarDidPressShare(self, shareView: button)
+    }
+
+    func tabLocationViewDidTapShopping(_ tabLocationView: TabLocationView, button: UIButton) {
+        delegate?.urlBarDidPressShopping(self, shoppingButton: button)
     }
 
     func tabLocationViewLocationAccessibilityActions(_ tabLocationView: TabLocationView) -> [UIAccessibilityCustomAction]? {

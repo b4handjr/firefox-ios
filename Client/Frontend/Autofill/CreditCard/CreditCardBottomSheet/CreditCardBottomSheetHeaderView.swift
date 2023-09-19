@@ -17,7 +17,9 @@ class CreditCardBottomSheetHeaderView: UITableViewHeaderFooterView, ReusableCell
         static let mainContainerElementsSpacing: CGFloat = 7.0
         static let bottomSpacing: CGFloat = 24.0
         static let logoSize: CGFloat = 36.0
+        static let closeButtonMarginAndWidth: CGFloat = 46.0
     }
+    public var titleLabelTrailingConstraint: NSLayoutConstraint!
 
     // MARK: Views
     public var viewModel: CreditCardBottomSheetViewModel? {
@@ -40,7 +42,7 @@ class CreditCardBottomSheetHeaderView: UITableViewHeaderFooterView, ReusableCell
         label.numberOfLines = 0
         label.lineBreakMode = .byWordWrapping
         label.text = .CreditCard.RememberCreditCard.MainTitle
-        label.font = DynamicFontHelper.defaultHelper.preferredBoldFont(
+        label.font = DefaultDynamicFontHelper.preferredBoldFont(
             withTextStyle: .headline,
             size: UX.titleLabelFontSize)
         label.adjustsFontForContentSizeCategory = true
@@ -54,7 +56,7 @@ class CreditCardBottomSheetHeaderView: UITableViewHeaderFooterView, ReusableCell
         label.setContentHuggingPriority(.defaultHigh, for: .vertical)
         label.text = String(format: String.CreditCard.RememberCreditCard.Header, AppName.shortName.rawValue)
 
-        label.font = DynamicFontHelper.defaultHelper.preferredFont(
+        label.font = DefaultDynamicFontHelper.preferredFont(
             withTextStyle: .body,
             size: UX.headerLabelFontSize)
         label.adjustsFontForContentSizeCategory = true
@@ -92,6 +94,8 @@ class CreditCardBottomSheetHeaderView: UITableViewHeaderFooterView, ReusableCell
         mainContainerStackView.addArrangedSubview(headerLabel)
 
         addSubview(mainContainerStackView)
+        let isCloseButtonOverlapping = traitCollection.horizontalSizeClass != .regular
+        titleLabelTrailingConstraint = titleLabel.trailingAnchor.constraint(equalTo: firstRowContainerView.trailingAnchor, constant: isCloseButtonOverlapping ? -UX.closeButtonMarginAndWidth : 0)
 
         NSLayoutConstraint.activate([
             firstRowContainerView.heightAnchor.constraint(equalToConstant: UX.logoSize),
@@ -101,7 +105,7 @@ class CreditCardBottomSheetHeaderView: UITableViewHeaderFooterView, ReusableCell
             firefoxLogoImage.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 0),
 
             titleLabel.leadingAnchor.constraint(equalTo: firefoxLogoImage.trailingAnchor, constant: UX.headerElementsSpacing),
-            titleLabel.trailingAnchor.constraint(equalTo: firstRowContainerView.trailingAnchor, constant: 0),
+            titleLabelTrailingConstraint,
             titleLabel.topAnchor.constraint(equalTo: firstRowContainerView.topAnchor, constant: 0),
             titleLabel.bottomAnchor.constraint(equalTo: firstRowContainerView.bottomAnchor, constant: 0),
 

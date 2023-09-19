@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
 import Common
+import ComponentLibrary
 import Foundation
 import Shared
 
@@ -75,20 +76,29 @@ extension OnboardingCardDelegate where Self: OnboardingViewControllerProtocol,
         from name: String,
         completionIfLastCard: (() -> Void)?
     ) {
-        let viewController = OnboardingDefaultSettingsViewController(
-            viewModel: viewModel.infoPopup,
+        guard let popupViewModel = viewModel
+            .availableCards
+            .first(where: { $0.viewModel.name == name })?
+            .viewModel
+            .instructionsPopup
+        else { return }
+
+        let instructionsVC = OnboardingInstructionPopupViewController(
+            viewModel: popupViewModel,
             buttonTappedFinishFlow: {
                 self.showNextPage(
                     from: name,
                     completionIfLastCard: completionIfLastCard)
             }
         )
-        var bottomSheetViewModel = BottomSheetViewModel()
+        var bottomSheetViewModel = BottomSheetViewModel(closeButtonA11yLabel: .CloseButtonTitle)
         bottomSheetViewModel.shouldDismissForTapOutside = true
         let bottomSheetVC = BottomSheetViewController(
             viewModel: bottomSheetViewModel,
-            childViewController: viewController,
+            childViewController: instructionsVC,
             usingDimmedBackground: true)
+
+        instructionsVC.dismissDelegate = bottomSheetVC
 
         self.present(bottomSheetVC, animated: false, completion: nil)
     }

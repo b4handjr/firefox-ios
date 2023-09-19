@@ -64,14 +64,14 @@ extension BrowserViewController: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping (Bool) -> Void
     ) {
-        let confirmAlert = ConfirmPanelAlert(message: message, frame: frame)
+        let confirmAlert = ConfirmPanelAlert(message: message,
+                                             frame: frame) { confirm in
+            completionHandler(confirm)
+        }
         if shouldDisplayJSAlertForWebView(webView) {
-            present(confirmAlert.alertController(), animated: true) {
-                completionHandler(true)
-            }
+            present(confirmAlert.alertController(), animated: true)
         } else if let promptingTab = tabManager[webView] {
             promptingTab.queueJavascriptAlertPrompt(confirmAlert)
-            completionHandler(false)
         }
     }
 
@@ -84,14 +84,13 @@ extension BrowserViewController: WKUIDelegate {
     ) {
         let textInputAlert = TextInputAlert(message: prompt,
                                             frame: frame,
-                                            defaultText: defaultText)
+                                            defaultText: defaultText) { confirm in
+            completionHandler(confirm)
+        }
         if shouldDisplayJSAlertForWebView(webView) {
-            present(textInputAlert.alertController(), animated: true) {
-                completionHandler(defaultText)
-            }
+            present(textInputAlert.alertController(), animated: true)
         } else if let promptingTab = tabManager[webView] {
             promptingTab.queueJavascriptAlertPrompt(textInputAlert)
-            completionHandler(nil)
         }
     }
 
@@ -196,12 +195,13 @@ extension BrowserViewController: WKUIDelegate {
                 let getImageData = { (_ url: URL, success: @escaping (Data) -> Void) in
                     makeURLSession(
                         userAgent: UserAgent.fxaUserAgent,
-                        configuration: URLSessionConfiguration.default).dataTask(with: url) { (data, response, error) in
+                        configuration: URLSessionConfiguration.default)
+                    .dataTask(with: url) { (data, response, error) in
                             if validatedHTTPResponse(response, statusCode: 200..<300) != nil,
                                let data = data {
                                 success(data)
                             }
-                        }.resume()
+                    }.resume()
                 }
 
                 var actions = [UIAction]()
@@ -210,7 +210,7 @@ extension BrowserViewController: WKUIDelegate {
                     actions.append(
                         UIAction(
                             title: .ContextMenuOpenInNewTab,
-                            image: UIImage.templateImageNamed(ImageIdentifiers.Large.plus),
+                            image: UIImage.templateImageNamed(StandardImageIdentifiers.Large.plus),
                             identifier: UIAction.Identifier(rawValue: "linkContextMenu.openInNewTab")
                         ) { _ in
                             addTab(url, false)
@@ -220,7 +220,7 @@ extension BrowserViewController: WKUIDelegate {
                 actions.append(
                     UIAction(
                         title: .ContextMenuOpenInNewPrivateTab,
-                        image: UIImage.templateImageNamed(ImageIdentifiers.Large.privateMode),
+                        image: UIImage.templateImageNamed("menu-NewPrivateTab"),
                         identifier: UIAction.Identifier("linkContextMenu.openInNewPrivateTab")
                     ) { _ in
                         addTab(url, true)
@@ -228,7 +228,7 @@ extension BrowserViewController: WKUIDelegate {
 
                 let addBookmarkAction = UIAction(
                     title: .ContextMenuBookmarkLink,
-                    image: UIImage.templateImageNamed(ImageIdentifiers.Large.bookmark),
+                    image: UIImage.templateImageNamed(StandardImageIdentifiers.Large.bookmark),
                     identifier: UIAction.Identifier("linkContextMenu.bookmarkLink")
                 ) { _ in
                     self.addBookmark(url: url.absoluteString, title: elements.title)
@@ -240,7 +240,7 @@ extension BrowserViewController: WKUIDelegate {
 
                 let removeAction = UIAction(
                     title: .RemoveBookmarkContextMenuTitle,
-                    image: UIImage.templateImageNamed(ImageIdentifiers.Large.cross),
+                    image: UIImage.templateImageNamed(StandardImageIdentifiers.Large.cross),
                     identifier: UIAction.Identifier("linkContextMenu.removeBookmarkLink")
                 ) { _ in
                     self.removeBookmark(url: url.absoluteString)
@@ -253,7 +253,7 @@ extension BrowserViewController: WKUIDelegate {
                 let isBookmarkedSite = profile.places.isBookmarked(url: url.absoluteString).value.successValue ?? false
                 actions.append(isBookmarkedSite ? removeAction : addBookmarkAction)
 
-                actions.append(UIAction(title: .ContextMenuDownloadLink, image: UIImage.templateImageNamed(ImageIdentifiers.Large.download), identifier: UIAction.Identifier("linkContextMenu.download")) { _ in
+                actions.append(UIAction(title: .ContextMenuDownloadLink, image: UIImage.templateImageNamed(StandardImageIdentifiers.Large.download), identifier: UIAction.Identifier("linkContextMenu.download")) { _ in
                     // This checks if download is a blob, if yes, begin blob download process
                     if !DownloadContentScript.requestBlobDownload(url: url, tab: currentTab) {
                         // if not a blob, set pendingDownloadWebView and load the request in
@@ -267,7 +267,7 @@ extension BrowserViewController: WKUIDelegate {
 
                 actions.append(UIAction(
                     title: .ContextMenuCopyLink,
-                    image: UIImage.templateImageNamed(ImageIdentifiers.Large.link),
+                    image: UIImage.templateImageNamed(StandardImageIdentifiers.Large.link),
                     identifier: UIAction.Identifier("linkContextMenu.copyLink")
                 ) { _ in
                     UIPasteboard.general.url = url
@@ -336,8 +336,7 @@ extension BrowserViewController: WKUIDelegate {
                  type: WKMediaCaptureType,
                  decisionHandler: @escaping (WKPermissionDecision) -> Void) {
         // If the tab isn't the selected one or we're on the homepage, do not show the media capture prompt
-        let hasNoHomepage = CoordinatorFlagManager.isCoordinatorEnabled ? !contentContainer.hasHomepage: homepageViewController?.view.alpha == 0
-        guard tabManager.selectedTab?.webView == webView, hasNoHomepage else {
+        guard tabManager.selectedTab?.webView == webView, !contentContainer.hasHomepage else {
             decisionHandler(.deny)
             return
         }
@@ -827,12 +826,14 @@ private extension BrowserViewController {
     // them then iOS will actually first open Safari, which then redirects to the app store. This works but it will
     // leave a 'Back to Safari' button in the status bar, which we do not want.
     func isStoreURL(_ url: URL) -> Bool {
-        if url.scheme == "http" || url.scheme == "https" || url.scheme == "itms-apps" {
-            if url.host == "itunes.apple.com" {
-                return true
-            }
-        }
-        return false
+      let isAppStoreScheme = ["itms-apps", "itms-appss"].contains(url.scheme)
+      if isAppStoreScheme {
+        return true
+      }
+
+      let isHttpScheme = ["http", "https"].contains(url.scheme)
+      let isAppStoreHost = ["itunes.apple.com", "apps.apple.com", "appsto.re"].contains(url.host)
+      return isHttpScheme && isAppStoreHost
     }
 
     // Use for sms and mailto links, which do not show a confirmation before opening.

@@ -2,90 +2,106 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import Common
 import Redux
 
-enum ThemePicker: Equatable {
-    case light
-    case dark
-}
-
-enum SwitchMode: Equatable {
-    case manual(ThemePicker)
-    case automatic(Float)
-}
-
-struct ThemeSettingsState: Equatable {
-    // Use system Light/Dark mode
+struct ThemeSettingsState: ScreenState, Equatable {
     var useSystemAppearance: Bool
-    var switchMode: SwitchMode
-    var manualThemeMode: ThemePicker
-    var systemBrightnessValue: Float
+    var isAutomaticBrightnessEnable: Bool
+    var manualThemeSelected: ThemeType
     var userBrightnessThreshold: Float
+    var systemBrightness: Float
+    private var logger: Logger
 
-    init(_ state: AppState) {
-        self.init()
+    init(_ appState: AppState) {
+        guard let themeState = store.state.screenState(ThemeSettingsState.self, for: .themeSettings) else {
+            self.init()
+            logger.log("Error retrieving screen state",
+                       level: .debug,
+                       category: .redux)
+            return
+        }
+
+        self.init(useSystemAppearance: themeState.useSystemAppearance,
+                  isAutomaticBrightnessEnable: themeState.isAutomaticBrightnessEnable,
+                  manualThemeSelected: themeState.manualThemeSelected,
+                  userBrightnessThreshold: themeState.userBrightnessThreshold,
+                  systemBrightness: themeState.systemBrightness)
     }
 
     init() {
-        self.useSystemAppearance = false
-        self.switchMode = .manual(ThemePicker.light)
-        self.manualThemeMode = .light
-        self.systemBrightnessValue =  1
-        self.userBrightnessThreshold = 0.1
+        self.init(useSystemAppearance: false,
+                  isAutomaticBrightnessEnable: false,
+                  manualThemeSelected: ThemeType.light,
+                  userBrightnessThreshold: 0,
+                  systemBrightness: 1)
     }
 
     init(useSystemAppearance: Bool,
-         switchMode: SwitchMode,
-         manualThemeMode: ThemePicker,
-         systemBrightnessValue: Float,
-         userBrightnessThreshold: Float) {
+         isAutomaticBrightnessEnable: Bool,
+         manualThemeSelected: ThemeType,
+         userBrightnessThreshold: Float,
+         systemBrightness: Float,
+         logger: Logger = DefaultLogger.shared) {
         self.useSystemAppearance = useSystemAppearance
-        self.switchMode = switchMode
-        self.manualThemeMode = manualThemeMode
-        self.systemBrightnessValue =  systemBrightnessValue
+        self.isAutomaticBrightnessEnable = isAutomaticBrightnessEnable
+        self.manualThemeSelected = manualThemeSelected
         self.userBrightnessThreshold = userBrightnessThreshold
+        self.systemBrightness = systemBrightness
+        self.logger = logger
     }
 
     static let reducer: Reducer<Self> = { state, action in
-        guard let action = action as? ThemeSettingsAction else { return state }
-
         switch action {
-        case .enableSystemAppearance(let isEnabled):
+        case ThemeSettingsAction.receivedThemeManagerValues(let themeState):
+            return themeState
+
+        case ThemeSettingsAction.toggleUseSystemAppearance(let isEnabled), ThemeSettingsAction.systemThemeChanged(let isEnabled):
             return ThemeSettingsState(useSystemAppearance: isEnabled,
-                                      switchMode: state.switchMode,
-                                      manualThemeMode: state.manualThemeMode,
-                                      systemBrightnessValue: state.systemBrightnessValue,
-                                      userBrightnessThreshold: state.userBrightnessThreshold)
-        case .systemThemeChanged(let isEnabled):
-            return ThemeSettingsState(useSystemAppearance: isEnabled,
-                                      switchMode: state.switchMode,
-                                      manualThemeMode: state.manualThemeMode,
-                                      systemBrightnessValue: state.systemBrightnessValue,
-                                      userBrightnessThreshold: state.userBrightnessThreshold)
-        case .toggleSwitchMode(let switchMode):
+                                      isAutomaticBrightnessEnable: state.isAutomaticBrightnessEnable,
+                                      manualThemeSelected: state.manualThemeSelected,
+                                      userBrightnessThreshold: state.userBrightnessThreshold,
+                                      systemBrightness: state.systemBrightness)
+
+        case ThemeSettingsAction.enableAutomaticBrightness(let isEnabled),
+            ThemeSettingsAction.automaticBrightnessChanged(let isEnabled):
             return ThemeSettingsState(useSystemAppearance: state.useSystemAppearance,
-                                      switchMode: switchMode,
-                                      manualThemeMode: state.manualThemeMode,
-                                      systemBrightnessValue: state.systemBrightnessValue,
-                                      userBrightnessThreshold: state.userBrightnessThreshold)
-        case .selectManualMode(let manualMode):
+                                      isAutomaticBrightnessEnable: isEnabled,
+                                      manualThemeSelected: state.manualThemeSelected,
+                                      userBrightnessThreshold: state.userBrightnessThreshold,
+                                      systemBrightness: state.systemBrightness)
+
+        case ThemeSettingsAction.switchManualTheme(let theme),
+            ThemeSettingsAction.manualThemeChanged(let theme):
             return ThemeSettingsState(useSystemAppearance: state.useSystemAppearance,
-                                      switchMode: state.switchMode,
-                                      manualThemeMode: manualMode,
-                                      systemBrightnessValue: state.systemBrightnessValue,
-                                      userBrightnessThreshold: state.userBrightnessThreshold)
-        case .brightnessValueChanged(let systemValue):
+                                      isAutomaticBrightnessEnable: state.isAutomaticBrightnessEnable,
+                                      manualThemeSelected: theme,
+                                      userBrightnessThreshold: state.userBrightnessThreshold,
+                                      systemBrightness: state.systemBrightness)
+
+        case ThemeSettingsAction.updateUserBrightness(let brightnessValue),
+            ThemeSettingsAction.userBrightnessChanged(let brightnessValue):
             return ThemeSettingsState(useSystemAppearance: state.useSystemAppearance,
-                                      switchMode: state.switchMode,
-                                      manualThemeMode: state.manualThemeMode,
-                                      systemBrightnessValue: systemValue,
-                                      userBrightnessThreshold: state.userBrightnessThreshold)
-        case .updateUserBrightnessThreshold(let userValue):
+                                      isAutomaticBrightnessEnable: state.isAutomaticBrightnessEnable,
+                                      manualThemeSelected: state.manualThemeSelected,
+                                      userBrightnessThreshold: brightnessValue,
+                                      systemBrightness: state.systemBrightness)
+
+        case ThemeSettingsAction.systemBrightnessChanged(let brightnessValue):
             return ThemeSettingsState(useSystemAppearance: state.useSystemAppearance,
-                                      switchMode: state.switchMode,
-                                      manualThemeMode: state.manualThemeMode,
-                                      systemBrightnessValue: state.systemBrightnessValue,
-                                      userBrightnessThreshold: userValue)
+                                      isAutomaticBrightnessEnable: state.isAutomaticBrightnessEnable,
+                                      manualThemeSelected: state.manualThemeSelected,
+                                      userBrightnessThreshold: state.userBrightnessThreshold,
+                                      systemBrightness: brightnessValue)
+        default:
+            return state
         }
+    }
+
+    static func == (lhs: ThemeSettingsState, rhs: ThemeSettingsState) -> Bool {
+        return lhs.useSystemAppearance == rhs.useSystemAppearance
+        && lhs.isAutomaticBrightnessEnable == rhs.isAutomaticBrightnessEnable
+        && lhs.manualThemeSelected == rhs.manualThemeSelected
+        && lhs.userBrightnessThreshold == rhs.userBrightnessThreshold
     }
 }

@@ -6,6 +6,7 @@ import Foundation
 import Shared
 import Account
 import Common
+import ComponentLibrary
 
 /// Reflects parent page that launched FirefoxAccountSignInViewController
 enum FxASignInParentType {
@@ -62,8 +63,8 @@ class FirefoxAccountSignInViewController: UIViewController, Themeable {
         label.numberOfLines = 0
         label.lineBreakMode = .byWordWrapping
         label.text = .FxASignin_Subtitle
-        label.font = DynamicFontHelper.defaultHelper.preferredBoldFont(withTextStyle: .headline,
-                                                                       size: UX.signInLabelFontSize)
+        label.font = DefaultDynamicFontHelper.preferredBoldFont(withTextStyle: .headline,
+                                                                size: UX.signInLabelFontSize)
         label.adjustsFontForContentSizeCategory = true
     }
 
@@ -76,8 +77,8 @@ class FirefoxAccountSignInViewController: UIViewController, Themeable {
         label.textAlignment = .center
         label.numberOfLines = 0
         label.lineBreakMode = .byWordWrapping
-        label.font = DynamicFontHelper.defaultHelper.preferredFont(withTextStyle: .headline,
-                                                                   size: UX.signInLabelFontSize)
+        label.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .headline,
+                                                            size: UX.signInLabelFontSize)
         label.adjustsFontForContentSizeCategory = true
 
         let placeholder = "firefox.com/pair"
@@ -85,8 +86,8 @@ class FirefoxAccountSignInViewController: UIViewController, Themeable {
             manager.getPairingAuthorityURL { result in
                 guard let url = try? result.get(), let host = url.host else { return }
 
-                let font = DynamicFontHelper.defaultHelper.preferredFont(withTextStyle: .headline,
-                                                                         size: UX.signInLabelFontSize)
+                let font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .headline,
+                                                                  size: UX.signInLabelFontSize)
                 let shortUrl = host + url.path // "firefox.com" + "/pair"
                 let msg: String = .FxASignin_QRInstructions.replaceFirstOccurrence(of: placeholder, with: shortUrl)
                 label.attributedText = msg.attributedText(boldString: shortUrl, font: font)
@@ -99,7 +100,7 @@ class FirefoxAccountSignInViewController: UIViewController, Themeable {
         button.setImage(self.signinSyncQRImage?.tinted(withColor: .white), for: .highlighted)
         button.setTitle(.FxASignin_QRScanSignin, for: .normal)
         button.accessibilityIdentifier = AccessibilityIdentifiers.Settings.FirefoxAccount.qrButton
-        button.titleLabel?.font = DynamicFontHelper.defaultHelper.preferredBoldFont(
+        button.titleLabel?.font = DefaultDynamicFontHelper.preferredBoldFont(
             withTextStyle: .callout,
             size: UX.buttonFontSize)
 
@@ -117,7 +118,7 @@ class FirefoxAccountSignInViewController: UIViewController, Themeable {
         button.accessibilityIdentifier = AccessibilityIdentifiers.Settings.FirefoxAccount.fxaSignInButton
         button.addTarget(self, action: #selector(self.emailLoginTapped), for: .touchUpInside)
         button.titleLabel?.adjustsFontForContentSizeCategory = true
-        button.titleLabel?.font = DynamicFontHelper.defaultHelper.preferredBoldFont(
+        button.titleLabel?.font = DefaultDynamicFontHelper.preferredBoldFont(
             withTextStyle: .callout,
             size: UX.buttonFontSize)
         button.contentEdgeInsets = UIEdgeInsets(top: UX.buttonVerticalInset,
@@ -262,14 +263,12 @@ class FirefoxAccountSignInViewController: UIViewController, Themeable {
     /// Use email login button tapped
     @objc
     func emailLoginTapped(_ sender: UIButton) {
-        let askForPermission = OnboardingNotificationCardHelper().askForPermissionDuringSync(
-            isOnboarding: telemetryObject == .onboarding)
-
+        let shouldAskForPermission = OnboardingNotificationCardHelper().shouldAskForNotificationsPermission(telemetryObj: telemetryObject)
         let fxaWebVC = FxAWebViewController(pageType: .emailLoginFlow,
                                             profile: profile,
                                             dismissalStyle: fxaDismissStyle,
                                             deepLinkParams: deepLinkParams,
-                                            shouldAskForNotificationPermission: askForPermission)
+                                            shouldAskForNotificationPermission: shouldAskForPermission)
         fxaWebVC.shouldDismissFxASignInViewController = { [weak self] in
             self?.shouldReload?()
             self?.dismissVC()
@@ -282,14 +281,13 @@ class FirefoxAccountSignInViewController: UIViewController, Themeable {
 // MARK: QRCodeViewControllerDelegate Functions
 extension FirefoxAccountSignInViewController: QRCodeViewControllerDelegate {
     func didScanQRCodeWithURL(_ url: URL) {
-        let askForPermission = OnboardingNotificationCardHelper().askForPermissionDuringSync(
-            isOnboarding: telemetryObject == .onboarding)
+        let shouldAskForPermission = OnboardingNotificationCardHelper().shouldAskForNotificationsPermission(telemetryObj: telemetryObject)
 
         let vc = FxAWebViewController(pageType: .qrCode(url: url.absoluteString),
                                       profile: profile,
                                       dismissalStyle: fxaDismissStyle,
                                       deepLinkParams: deepLinkParams,
-                                      shouldAskForNotificationPermission: askForPermission)
+                                      shouldAskForNotificationPermission: shouldAskForPermission)
         navigationController?.pushViewController(vc, animated: true)
     }
 

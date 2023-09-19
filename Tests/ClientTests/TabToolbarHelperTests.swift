@@ -13,12 +13,12 @@ class TabToolbarHelperTests: XCTestCase {
     var subject: TabToolbarHelper!
     var mockToolbar: MockTabToolbar!
 
-    let backButtonImage = UIImage.templateImageNamed(ImageIdentifiers.Large.back)?.imageFlippedForRightToLeftLayoutDirection()
-    let forwardButtonImage = UIImage.templateImageNamed(ImageIdentifiers.Large.forward)?.imageFlippedForRightToLeftLayoutDirection()
-    let menuButtonImage = UIImage.templateImageNamed(ImageIdentifiers.Large.appMenu)
+    let backButtonImage = UIImage.templateImageNamed(StandardImageIdentifiers.Large.back)?.imageFlippedForRightToLeftLayoutDirection()
+    let forwardButtonImage = UIImage.templateImageNamed(StandardImageIdentifiers.Large.forward)?.imageFlippedForRightToLeftLayoutDirection()
+    let menuButtonImage = UIImage.templateImageNamed(StandardImageIdentifiers.Large.appMenu)
     let searchButtonImage = UIImage.templateImageNamed("search")
-    let imageNewTab = UIImage.templateImageNamed(ImageIdentifiers.Large.plus)
-    let imageHome = UIImage.templateImageNamed(ImageIdentifiers.Large.home)
+    let imageNewTab = UIImage.templateImageNamed(StandardImageIdentifiers.Large.plus)
+    let imageHome = UIImage.templateImageNamed(StandardImageIdentifiers.Large.home)
 
     override func setUp() {
         super.setUp()
@@ -53,6 +53,12 @@ class TabToolbarHelperTests: XCTestCase {
     func testTelemetryForSiteMenu() {
         mockToolbar.tabToolbarDelegate?.tabToolbarDidPressMenu(mockToolbar, button: mockToolbar.appMenuButton)
         testCounterMetricRecordingSuccess(metric: GleanMetrics.AppMenu.siteMenu)
+    }
+
+    func test_tabToolBarHelper_basicCreation_doesntLeak() {
+        let tabToolBar = TabToolbar()
+        let subject = TabToolbarHelper(toolbar: tabToolBar)
+        trackForMemoryLeaks(subject)
     }
 }
 

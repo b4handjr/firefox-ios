@@ -52,9 +52,9 @@ extension Notification.Name {
 
     public static let HomePanelPrefsChanged = Notification.Name("HomePanelPrefsChanged")
 
-    public static let FileDidDownload = Notification.Name("FileDidDownload")
+    public static let FakespotViewControllerDidDismiss = Notification.Name("FakespotViewControllerDidDismiss")
 
-    public static let DisplayThemeChanged = Notification.Name("DisplayThemeChanged")
+    public static let FileDidDownload = Notification.Name("FileDidDownload")
 
     public static let SearchBarPositionDidChange = Notification.Name("SearchBarPositionDidChange")
 
@@ -80,6 +80,8 @@ extension Notification.Name {
 
     public static let TabDataUpdated = Notification.Name("TabDataUpdated")
 
+    public static let PendingBlobDownloadAddedToQueue = Notification.Name("PendingBlobDownloadAddedToQueue")
+
     // MARK: Tab manager
 
     // Tab manager creates a toast for undo recently closed tabs and a notification is
@@ -91,11 +93,10 @@ extension Notification.Name {
 
     // MARK: Settings
 
+    public static let BlockPopup = Notification.Name("BlockPopup")
     public static let BookmarksUpdated = Notification.Name("BookmarksUpdated")
     public static let ReadingListUpdated = Notification.Name("ReadingListUpdated")
     public static let TopSitesUpdated = Notification.Name("TopSitesUpdated")
     public static let HistoryUpdated = Notification.Name("HistoryUpdated")
     public static let DefaultSearchEngineUpdated = Notification.Name("DefaultSearchEngineUpdated")
-
-    public static let PresentIntroView = Notification.Name("PresentIntroView")
 }

@@ -43,48 +43,6 @@ class JumpBackInViewModelTests: XCTestCase {
         mockProfile = nil
     }
 
-    // MARK: - Switch to group
-
-    func test_switchToGroup_noBrowserDelegate_doNothing() {
-        let subject = createSubject()
-        let group = ASGroup<Tab>(searchTerm: "", groupedItems: [], timestamp: 0)
-        var completionDidRun = false
-        subject.onTapGroup = { tab in
-            completionDidRun = true
-        }
-
-        subject.switchTo(group: group)
-
-        XCTAssertFalse(completionDidRun)
-    }
-
-    func test_switchToGroup_noGroupedItems_doNothing() {
-        let subject = createSubject()
-        let group = ASGroup<Tab>(searchTerm: "", groupedItems: [], timestamp: 0)
-        var completionDidRun = false
-        subject.onTapGroup = { tab in
-            completionDidRun = true
-        }
-
-        subject.switchTo(group: group)
-
-        XCTAssertFalse(completionDidRun)
-    }
-
-    func test_switchToGroup_callCompletionOnFirstGroupedItem() {
-        let subject = createSubject()
-        let expectedTab = createTab(profile: mockProfile)
-        let group = ASGroup<Tab>(searchTerm: "", groupedItems: [expectedTab], timestamp: 0)
-        var receivedTab: Tab?
-        subject.onTapGroup = { tab in
-            receivedTab = tab
-        }
-
-        subject.switchTo(group: group)
-
-        XCTAssertEqual(expectedTab, receivedTab)
-    }
-
     // MARK: - Switch to tab
 
     func test_switchToTab_notInOverlayMode_switchTabs() {
@@ -138,7 +96,6 @@ class JumpBackInViewModelTests: XCTestCase {
 
     func testMaxJumpBackInItemsToDisplay_compactSyncedTab() async {
         let subject = createSubject()
-        subject.featureFlags.set(feature: .jumpBackInSyncedTab, to: true)
         await adaptor.setSyncedTab(syncedTab: JumpBackInSyncedTab(client: remoteClient, tab: remoteTab))
 
         // iPhone layout portrait
@@ -157,7 +114,6 @@ class JumpBackInViewModelTests: XCTestCase {
 
     func testMaxJumpBackInItemsToDisplay_compactJumpBackInAndSyncedTab() async {
         let subject = createSubject()
-        subject.featureFlags.set(feature: .jumpBackInSyncedTab, to: true)
         await adaptor.setSyncedTab(syncedTab: JumpBackInSyncedTab(client: remoteClient, tab: remoteTab))
         let tab1 = createTab(profile: mockProfile, urlString: "www.firefox1.com")
         await adaptor.setRecentTabs(recentTabs: [tab1])

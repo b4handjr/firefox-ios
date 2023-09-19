@@ -46,7 +46,7 @@ class SyncNowSetting: WithAccountSetting {
                 string: .FxANoInternetConnection,
                 attributes: [
                     NSAttributedString.Key.foregroundColor: theme.colors.textWarning,
-                    NSAttributedString.Key.font: DynamicFontHelper.defaultHelper.DefaultMediumFont
+                    NSAttributedString.Key.font: DefaultDynamicFontHelper.preferredFont(withTextStyle: .body, size: 13, weight: .regular)
                 ]
             )
         }
@@ -57,7 +57,7 @@ class SyncNowSetting: WithAccountSetting {
             string: .FxASyncNow,
             attributes: [
                 NSAttributedString.Key.foregroundColor: self.enabled ? syncText : headerLightText,
-                NSAttributedString.Key.font: DynamicFontHelper.defaultHelper.DefaultStandardFont
+                NSAttributedString.Key.font: DefaultDynamicFontHelper.preferredFont(withTextStyle: .body, size: 17, weight: .regular)
             ]
         )
     }
@@ -98,25 +98,21 @@ class SyncNowSetting: WithAccountSetting {
         }
 
         switch syncStatus {
-        case .bad(let message):
-            guard let message = message else { return syncNowTitle }
+        case .bad(nil):
+            return syncNowTitle
+        case .bad(let message?),
+             .warning(let message):
             return NSAttributedString(
                 string: message,
                 attributes: [
                     NSAttributedString.Key.foregroundColor: theme.colors.textWarning,
-                    NSAttributedString.Key.font: DynamicFontHelper.defaultHelper.DefaultStandardFont])
-        case .warning(let message):
-            return  NSAttributedString(
-                string: message,
-                attributes: [
-                    NSAttributedString.Key.foregroundColor: theme.colors.textWarning,
-                    NSAttributedString.Key.font: DynamicFontHelper.defaultHelper.DefaultStandardFont])
+                    NSAttributedString.Key.font: DefaultDynamicFontHelper.preferredFont(withTextStyle: .body, size: 17, weight: .regular)])
         case .inProgress:
             return NSAttributedString(
                 string: .SyncingMessageWithEllipsis,
                 attributes: [NSAttributedString.Key.foregroundColor: theme.colors.textPrimary,
                              NSAttributedString.Key.font: UIFont.systemFont(
-                                ofSize: DynamicFontHelper.defaultHelper.DefaultStandardFontSize,
+                                ofSize: LegacyDynamicFontHelper.defaultHelper.DefaultStandardFontSize,
                                 weight: UIFont.Weight.regular)])
         default:
             return syncNowTitle
@@ -154,7 +150,7 @@ class SyncNowSetting: WithAccountSetting {
         troubleshootButton.setTitle(.FirefoxSyncTroubleshootTitle, for: .normal)
         troubleshootButton.addTarget(self, action: #selector(self.troubleshoot), for: .touchUpInside)
         troubleshootButton.tintColor = theme.colors.actionPrimary
-        troubleshootButton.titleLabel?.font = DynamicFontHelper.defaultHelper.DefaultSmallFont
+        troubleshootButton.titleLabel?.font = LegacyDynamicFontHelper.defaultHelper.DefaultSmallFont
         troubleshootButton.sizeToFit()
         return troubleshootButton
     }()
@@ -175,14 +171,7 @@ class SyncNowSetting: WithAccountSetting {
 
     @objc
     private func troubleshoot() {
-        if CoordinatorFlagManager.isSettingsCoordinatorEnabled {
-            settingsDelegate?.askedToOpen(url: syncSUMOURL, withTitle: title)
-            return
-        }
-
-        let viewController = SettingsContentViewController()
-        viewController.url = syncSUMOURL
-        settings.navigationController?.pushViewController(viewController, animated: true)
+        settingsDelegate?.askedToOpen(url: syncSUMOURL, withTitle: title)
     }
 
     override func onConfigureCell(_ cell: UITableViewCell, theme: Theme) {

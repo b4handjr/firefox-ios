@@ -26,8 +26,8 @@ class RecentlySavedCell: UICollectionViewCell, ReusableCell {
     private var heroImageView: HeroImageView = .build { _ in }
 
     let itemTitle: UILabel = .build { label in
-        label.font = DynamicFontHelper.defaultHelper.preferredFont(withTextStyle: .body,
-                                                                   size: UX.bookmarkTitleFontSize)
+        label.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .body,
+                                                            size: UX.bookmarkTitleFontSize)
         label.adjustsFontForContentSizeCategory = true
     }
 
@@ -49,7 +49,6 @@ class RecentlySavedCell: UICollectionViewCell, ReusableCell {
     override func prepareForReuse() {
         super.prepareForReuse()
         itemTitle.text = nil
-        heroImageView.prepareForReuse()
     }
 
     override func layoutSubviews() {

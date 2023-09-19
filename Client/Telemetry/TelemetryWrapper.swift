@@ -31,7 +31,7 @@ extension TelemetryWrapperProtocol {
     }
 }
 
-class TelemetryWrapper: TelemetryWrapperProtocol {
+class TelemetryWrapper: TelemetryWrapperProtocol, FeatureFlaggable {
     typealias ExtraKey = TelemetryWrapper.EventExtraKey
 
     static let shared = TelemetryWrapper()
@@ -313,6 +313,23 @@ class TelemetryWrapper: TelemetryWrapperProtocol {
             // https://mozilla.github.io/glean/book/reference/metrics/index.html#label-format)
             GleanMetrics.WallpaperAnalytics.themedWallpaper[currentWallpaper.id.lowercased()].add()
         }
+
+        // Homepage section preferences
+        let isJumpBackInEnabled = featureFlags.isFeatureEnabled(.jumpBackIn, checking: .buildAndUser)
+        GleanMetrics.Preferences.jumpBackIn.set(isJumpBackInEnabled)
+
+        let isRecentlyVisitedEnabled = featureFlags.isFeatureEnabled(.historyHighlights, checking: .buildAndUser)
+        GleanMetrics.Preferences.recentlyVisited.set(isRecentlyVisitedEnabled)
+
+        let isRecentlySavedEnabled = featureFlags.isFeatureEnabled(.recentlySaved, checking: .buildAndUser)
+        GleanMetrics.Preferences.recentlySaved.set(isRecentlySavedEnabled)
+
+        let isPocketEnabled = featureFlags.isFeatureEnabled(.pocket, checking: .buildAndUser)
+        GleanMetrics.Preferences.pocket.set(isPocketEnabled)
+
+        if let startAtHomeSetting: StartAtHomeSetting = featureFlags.getCustomState(for: .startAtHome) {
+            GleanMetrics.Preferences.openingScreen.set(startAtHomeSetting.rawValue)
+        }
     }
 
     @objc
@@ -376,10 +393,21 @@ extension TelemetryWrapper {
         case bookmark = "bookmark"
         case awesomebarResults = "awesomebar-results"
         case bookmarksPanel = "bookmarks-panel"
+        case mobileBookmarks = "has-mobile-bookmarks"
         case download = "download"
         case downloadLinkButton = "download-link-button"
         case downloadNowButton = "download-now-button"
         case downloadsPanel = "downloads-panel"
+        case shoppingButton = "shopping-button"
+        case shoppingBottomSheet = "shopping-bottom-sheet"
+        case shoppingRecentReviews = "shopping-recent-reviews"
+        case shoppingSettingsCardTurnOffButton = "shopping-settings-card-turn-off-button"
+        case shoppingSettingsChevronButton = "shopping-settings-chevron-button"
+        case shoppingOptIn = "shopping-opt-in"
+        case shoppingNotNowButton = "shopping-not-now-button"
+        case shoppingTermsOfUseButton = "shopping-terms-of-use-button"
+        case shoppingPrivacyPolicyButton = "shopping-privacy-policy-button"
+        case shoppingLearnMoreButton = "shopping-learn-more-button"
         case keyCommand = "key-command"
         case locationBar = "location-bar"
         case messaging = "messaging"
@@ -490,6 +518,11 @@ extension TelemetryWrapper {
         case selectedHistoryItem = "selected-history-item"
         case searchHistory = "search-history"
         case deleteHistory = "delete-history"
+        case historySingleItemRemoved = "history-single-item-removed"
+        case historyPanelOpened = "history-panel-opened"
+        case historyRemovedToday = "history-removed-today"
+        case historyRemovedTodayAndYesterday = "history-removed-today-and-yesterday"
+        case historyRemovedAll = "history-removed-all"
         case shareSheet = "share-sheet"
         case sharePageWith = "share-page-with"
         case sendToDevice = "send-to-device"
@@ -522,6 +555,7 @@ extension TelemetryWrapper {
         case viewDownloadsPanel = "view-downloads-panel"
         case viewHistoryPanel = "view-history-panel"
         case createNewTab = "create-new-tab"
+        case sponsoredShortcuts = "sponsored-shortcuts"
     }
 
     public enum EventValue: String {
@@ -545,7 +579,6 @@ extension TelemetryWrapper {
         case shareSaveToPocket = "save-to-pocket-share-action"
         case tabTray = "tab-tray"
         case topTabs = "top-tabs"
-        case systemThemeSwitch = "system-theme-switch"
         case themeModeManually = "theme-manually"
         case themeModeAutomatically = "theme-automatically"
         case themeLight = "theme-light"
@@ -554,6 +587,11 @@ extension TelemetryWrapper {
         case normalTab = "normal-tab"
         case tabView = "tab-view"
         case bookmarksPanel = "bookmarks-panel"
+        case doesHaveMobileBookmarks = "does-have-mobile-bookmarks"
+        case doesNotHaveMobileBookmarks = "does-not-have-mobile-bookmarks"
+        case mobileBookmarksCount = "mobile-bookmarks-count"
+        case bookmarkAddFolder = "bookmark-add-folder"
+        case openBookmarksFromTopSites = "top-sites"
         case historyPanel = "history-panel"
         case historyPanelNonGroupItem = "history-panel-non-grouped-item"
         case historyPanelGroupedItem = "history-panel-grouped-item"
@@ -628,6 +666,9 @@ extension TelemetryWrapper {
         case wallpaperType = "wallpaperType"
 
         case cfrType = "hintType"
+
+        // Bookmarks
+        case mobileBookmarksQuantity = "mobileBookmarksQuantity"
 
         // Grouped Tab
         case groupsWithTwoTabsOnly = "groupsWithTwoTabsOnly"
@@ -714,6 +755,16 @@ extension TelemetryWrapper {
             GleanMetrics.Bookmarks.open[from.rawValue].add()
         case (.action, .change, .bookmark, let from?, _):
             GleanMetrics.Bookmarks.edit[from.rawValue].add()
+        case(.information, .view, .mobileBookmarks, .doesHaveMobileBookmarks, _):
+            GleanMetrics.Bookmarks.hasMobileBookmarks.set(true)
+        case(.information, .view, .mobileBookmarks, .doesNotHaveMobileBookmarks, _):
+            GleanMetrics.Bookmarks.hasMobileBookmarks.set(false)
+        case(.information, .view, .mobileBookmarks, .mobileBookmarksCount, let extras):
+            if let quantity = extras?[EventExtraKey.mobileBookmarksQuantity.rawValue] as? Int64 {
+                GleanMetrics.Bookmarks.mobileBookmarksCount.set(quantity)
+            }
+        case(.action, .tap, .bookmark, .bookmarkAddFolder, _):
+            GleanMetrics.Bookmarks.folderAdd.record()
         // MARK: Reader Mode
         case (.action, .tap, .readerModeOpenButton, _, _):
             GleanMetrics.ReaderMode.open.add()
@@ -726,6 +777,19 @@ extension TelemetryWrapper {
             GleanMetrics.ReadingList.delete[from.rawValue].add()
         case (.action, .open, .readingListItem, _, _):
             GleanMetrics.ReadingList.open.add()
+
+        // MARK: History
+        case(.information, .view, .historyPanelOpened, _, _):
+            GleanMetrics.History.opened.record()
+        case(.action, .swipe, .historySingleItemRemoved, _, _):
+            GleanMetrics.History.removed.record()
+        case(.action, .tap, .historyRemovedToday, _, _):
+            GleanMetrics.History.removedToday.record()
+        case(.action, .tap, .historyRemovedTodayAndYesterday, _, _):
+            GleanMetrics.History.removedTodayAndYesterday.record()
+        case(.action, .tap, .historyRemovedAll, _, _):
+            GleanMetrics.History.removedAll.record()
+
         // MARK: Top Site
         case (.action, .tap, .topSiteTile, _, let extras):
             if let homePageOrigin = extras?[EventExtraKey.fxHomepageOrigin.rawValue] as? String {
@@ -959,6 +1023,32 @@ extension TelemetryWrapper {
             } else {
                 recordUninstrumentedMetrics(category: category, method: method, object: object, value: value, extras: extras)
             }
+
+        // MARK: Shopping Experience (Fakespot)
+        case (.action, .tap, .shoppingButton, _, _):
+            GleanMetrics.Shopping.addressBarIconClicked.record()
+        case (.action, .view, .shoppingButton, _, _):
+            GleanMetrics.Shopping.addressBarIconDisplayed.record()
+        case (.action, .close, .shoppingBottomSheet, _, _):
+            GleanMetrics.Shopping.surfaceClosed.record()
+        case (.action, .tap, .shoppingRecentReviews, _, _):
+            GleanMetrics.Shopping.surfaceShowMoreRecentReviewsClicked.record()
+        case (.action, .view, .shoppingBottomSheet, _, _):
+            GleanMetrics.Shopping.surfaceDisplayed.record()
+        case (.action, .tap, .shoppingSettingsCardTurnOffButton, _, _):
+            GleanMetrics.Shopping.settingsComponentOptedOut.record()
+        case (.action, .view, .shoppingSettingsChevronButton, _, _):
+            GleanMetrics.Shopping.surfaceSettingsExpandClicked.record()
+        case (.action, .tap, .shoppingOptIn, _, _):
+            GleanMetrics.Shopping.surfaceOptInAccepted.record()
+        case (.action, .tap, .shoppingNotNowButton, _, _):
+            GleanMetrics.Shopping.surfaceNotNowClicked.record()
+        case (.action, .tap, .shoppingTermsOfUseButton, _, _):
+            GleanMetrics.Shopping.surfaceShowTermsClicked.record()
+        case (.action, .tap, .shoppingPrivacyPolicyButton, _, _):
+            GleanMetrics.Shopping.surfaceShowPrivacyPolicyClicked.record()
+        case (.action, .tap, .shoppingLearnMoreButton, _, _):
+            GleanMetrics.Shopping.surfaceLearnMoreClicked.record()
 
         // MARK: Onboarding
         case (.action, .view, .onboardingCardView, _, let extras):
@@ -1438,7 +1528,18 @@ extension TelemetryWrapper {
             } else {
                 recordUninstrumentedMetrics(category: category, method: method, object: object, value: value, extras: extras)
             }
-
+        // MARK: - Sponsored Shortcuts
+        case (.information, .view, .sponsoredShortcuts, _, let extras):
+            if let enabled = extras?[EventExtraKey.preference.rawValue] as? Bool {
+                GleanMetrics.TopSites.sponsoredShortcuts.set(enabled)
+            } else {
+                recordUninstrumentedMetrics(
+                    category: category,
+                    method: method,
+                    object: object,
+                    value: value,
+                    extras: extras)
+            }
         // MARK: - Awesomebar
         case (.information, .view, .awesomebarLocation, _, let extras):
             if let location = extras?[EventExtraKey.preference.rawValue] as? String {

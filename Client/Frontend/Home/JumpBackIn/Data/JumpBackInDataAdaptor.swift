@@ -69,7 +69,7 @@ actor JumpBackInDataAdaptorImplementation: JumpBackInDataAdaptor, FeatureFlaggab
     // MARK: Public interface
 
     func hasSyncedTabFeatureEnabled() -> Bool {
-        return featureFlags.isFeatureEnabled(.jumpBackInSyncedTab, checking: .buildOnly) && hasSyncAccount ?? false
+        return hasSyncAccount ?? false
     }
 
     func getRecentTabData() -> [Tab] {
@@ -132,27 +132,12 @@ actor JumpBackInDataAdaptorImplementation: JumpBackInDataAdaptor, FeatureFlaggab
     }
 
     private func updateGroupsData() async -> [ASGroup<Tab>]? {
-        guard featureFlags.isFeatureEnabled(.tabTrayGroups, checking: .buildAndUser) else {
-            return nil
-        }
-        return await withCheckedContinuation { continuation in
-            SearchTermGroupsUtility.getTabGroups(
-                with: self.profile,
-                from: self.recentTabs,
-                using: .orderedDescending
-            ) { groups, _ in
-                continuation.resume(returning: groups)
-            }
-        }
+        return nil
     }
 
     // MARK: Synced tab data
 
     private func getHasSyncAccount() async -> Bool {
-        guard featureFlags.isFeatureEnabled(.jumpBackInSyncedTab, checking: .buildOnly) else {
-            return false
-        }
-
         return await withCheckedContinuation { continuation in
             profile.hasSyncAccount { hasSync in
                 continuation.resume(returning: hasSync)
@@ -177,7 +162,8 @@ actor JumpBackInDataAdaptorImplementation: JumpBackInDataAdaptor, FeatureFlaggab
     private func createMostRecentSyncedTab(from clientAndTabs: [ClientAndTabs]) {
         // filter clients for non empty desktop clients
         let desktopClientAndTabs = clientAndTabs.filter { !$0.tabs.isEmpty &&
-            ClientType.fromFxAType($0.client.type) == .Desktop }
+            ClientType.fromFxAType($0.client.type) == .Desktop
+        }
 
         guard !desktopClientAndTabs.isEmpty, !clientAndTabs.isEmpty else {
             mostRecentSyncedTab = nil

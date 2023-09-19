@@ -109,7 +109,8 @@ class NimbusOnboardingFeatureLayerTests: XCTestCase {
                     action: .nextCard)),
             type: .freshInstall,
             a11yIdRoot: CardElementNames.a11yIDOnboarding,
-            imageID: ImageIdentifiers.onboardingWelcomev106)
+            imageID: ImageIdentifiers.onboardingWelcomev106,
+            instructionsPopup: nil)
 
         XCTAssertEqual(subject.name, expectedCard.name)
         XCTAssertEqual(subject.title, expectedCard.title)
@@ -244,14 +245,17 @@ class NimbusOnboardingFeatureLayerTests: XCTestCase {
     }
 
     // MARK: - Test Info Popup
-    func testLayer_infoPopupReturnsExpectedValues() {
+    func testLayer_infoPopupReturnsExpectedValues() throws {
         configUtility.setupNimbusWith()
         let layer = NimbusOnboardingFeatureLayer(with: MockNimbusMessagingHelperUtility())
 
-        let subject = layer.getOnboardingModel(for: .freshInstall).infoPopupModel
+        let subject = try XCTUnwrap(
+            layer.getOnboardingModel(for: .freshInstall).cards.first?.instructionsPopup,
+            "Failed to get instructions popup")
 
         XCTAssertEqual(subject.title, CardElementNames.popupTitle)
         XCTAssertEqual(subject.buttonTitle, CardElementNames.popupButtonTitle)
+        XCTAssertEqual(subject.buttonAction, OnboardingInstructionsPopupActions.dismiss)
         XCTAssertEqual(
             subject.instructionSteps,
             [
@@ -296,6 +300,30 @@ class NimbusOnboardingFeatureLayerTests: XCTestCase {
         }
 
         XCTAssertEqual(subject.image, UIImage(named: ImageIdentifiers.onboardingSyncv106))
+    }
+
+    func testLayer_cardIsReturned_WithDockImageIdenfier() {
+        configUtility.setupNimbusWith(image: .setToDock)
+        let layer = NimbusOnboardingFeatureLayer(with: MockNimbusMessagingHelperUtility())
+
+        guard let subject = layer.getOnboardingModel(for: .freshInstall).cards.first else {
+            XCTFail("Expected a card, and got none.")
+            return
+        }
+
+        XCTAssertEqual(subject.imageID, ImageIdentifiers.onboardingSetToDock)
+    }
+
+    func testLayer_cardIsReturned_WithSearchWidgetImageIdenfier() {
+        configUtility.setupNimbusWith(image: .searchWidget)
+        let layer = NimbusOnboardingFeatureLayer(with: MockNimbusMessagingHelperUtility())
+
+        guard let subject = layer.getOnboardingModel(for: .freshInstall).cards.first else {
+            XCTFail("Expected a card, and got none.")
+            return
+        }
+
+        XCTAssertEqual(subject.imageID, ImageIdentifiers.onboardingSearchWidget)
     }
 
     // MARK: - Test install types

@@ -2,11 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/
 
+import Common
+import ComponentLibrary
+import Foundation
 import Shared
 import Storage
-import Common
-
-import Foundation
 import UIKit
 
 class CreditCardBottomSheetViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, BottomSheetChild, Themeable {
@@ -26,6 +26,7 @@ class CreditCardBottomSheetViewController: UIViewController, UITableViewDelegate
         // 24 is the spacing needed between the header and the table cell, left in this form so it's not overlooked
         static let headerPreferredHeight: CGFloat = UIDevice.current.userInterfaceIdiom == .pad ? 64 + 24 : 84 + 24
         static let estimatedRowHeight: CGFloat = 86
+        static let closeButtonMarginAndWidth: CGFloat = 46.0
     }
 
     var notificationCenter: NotificationProtocol
@@ -81,7 +82,7 @@ class CreditCardBottomSheetViewController: UIViewController, UITableViewDelegate
     }
 
     private lazy var yesButton: ResizableButton = .build { button in
-        button.titleLabel?.font = DynamicFontHelper.defaultHelper.preferredFont(
+        button.titleLabel?.font = DefaultDynamicFontHelper.preferredFont(
             withTextStyle: .headline,
             size: UX.yesButtonFontSize)
         button.addTarget(self, action: #selector(self.didTapYes), for: .touchUpInside)
@@ -132,7 +133,7 @@ class CreditCardBottomSheetViewController: UIViewController, UITableViewDelegate
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        updateHeightConstraints()
+        updateConstraints()
     }
 
     deinit {
@@ -186,23 +187,29 @@ class CreditCardBottomSheetViewController: UIViewController, UITableViewDelegate
         ])
     }
 
-    func updateHeightConstraints() {
+    func updateConstraints() {
         let buttonsHeight = buttonsContainerStackView.frame.height
         let estimatedContentHeight = cardTableView.contentSize.height + buttonsHeight + UX.bottomSpacing
         let aspectRatio = estimatedContentHeight / contentView.bounds.size.height
         contentViewHeightConstraint.constant = contentViewHeightConstraint.constant * aspectRatio
+
+        let contentViewWidth = UX.contentViewWidth > view.frame.size.width ? view.frame.size.width - UX.containerPadding : UX.contentViewWidth
+        contentWidthConstraint.constant = contentViewWidth
     }
 
     // MARK: View Transitions
     override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
         super.traitCollectionDidChange(previousTraitCollection)
-        updateHeightConstraints()
+        updateConstraints()
     }
 
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
         let contentViewWidth = UX.contentViewWidth > size.width ? size.width - UX.containerPadding : UX.contentViewWidth
         contentWidthConstraint.constant = contentViewWidth
+        if let header = cardTableView.headerView(forSection: 0) as? CreditCardBottomSheetHeaderView {
+            header.titleLabelTrailingConstraint.constant = UX.contentViewWidth > size.width ? -UX.closeButtonMarginAndWidth : 0
+        }
     }
 
     // MARK: Button Actions
@@ -259,6 +266,8 @@ class CreditCardBottomSheetViewController: UIViewController, UITableViewDelegate
         hostingCell.contentView.backgroundColor = .clear
         hostingCell.selectionStyle = .none
         hostingCell.isAccessibilityElement = true
+        hostingCell.accessibilityAttributedLabel = viewModel.a11yLabel(for: creditCard)
+
         return hostingCell
     }
 
@@ -319,7 +328,7 @@ class CreditCardBottomSheetViewController: UIViewController, UITableViewDelegate
         let currentTheme = themeManager.currentTheme
         view.backgroundColor = currentTheme.colors.layer1
         yesButton.backgroundColor = currentTheme.colors.actionPrimary
-        yesButton.titleLabel?.textColor = currentTheme.colors.textInverted
+        yesButton.setTitleColor(currentTheme.colors.textInverted, for: .normal)
         cardTableView.reloadData()
     }
 }

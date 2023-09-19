@@ -45,8 +45,8 @@ class OneLineTableViewCell: UITableViewCell,
     lazy var leftImageView: FaviconImageView = .build { _ in }
 
     lazy var titleLabel: UILabel = .build { label in
-        label.font = DynamicFontHelper.defaultHelper.preferredFont(withTextStyle: .body,
-                                                                   size: UX.labelFontSize)
+        label.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .body,
+                                                            size: UX.labelFontSize)
         label.textAlignment = .natural
     }
 
@@ -124,7 +124,6 @@ class OneLineTableViewCell: UITableViewCell,
         selectionStyle = .default
         separatorInset = defaultSeparatorInset
         titleLabel.text = nil
-        leftImageView.image = nil
     }
 
     // To simplify setup, OneLineTableViewCell now has a viewModel
@@ -132,10 +131,10 @@ class OneLineTableViewCell: UITableViewCell,
     func configure(viewModel: OneLineTableViewCellViewModel) {
         titleLabel.text = viewModel.title
         accessoryView = viewModel.accessoryView
-        editingAccessoryType = viewModel.accessoryType
+        accessoryType = viewModel.accessoryType
 
         if let image = viewModel.leftImageView {
-            leftImageView.image = image
+            leftImageView.manuallySetImage(image)
         }
     }
 

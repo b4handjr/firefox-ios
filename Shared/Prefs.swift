@@ -69,19 +69,19 @@ public struct PrefsKeys {
     // For ease of use, please list keys alphabetically.
     public struct FeatureFlags {
         public static let ASPocketStories = "ASPocketStoriesUserPrefsKey"
-        public static let AutopushFeature = "AutopushFeatureUserPrefKey"
         public static let CustomWallpaper = "CustomWallpaperUserPrefsKey"
         public static let HistoryHighlightsSection = "HistoryHighlightsSectionUserPrefsKey"
         public static let HistoryGroups = "HistoryGroupsUserPrefsKey"
         public static let InactiveTabs = "InactiveTabsUserPrefsKey"
         public static let JumpBackInSection = "JumpBackInSectionUserPrefsKey"
-        public static let PullToRefresh = "PullToRefreshUserPrefsKey"
         public static let RecentlySavedSection = "RecentlySavedSectionUserPrefsKey"
         public static let SearchBarPosition = "SearchBarPositionUsersPrefsKey"
         public static let StartAtHome = "StartAtHomeUserPrefsKey"
-        public static let SponsoredShortcuts = "SponsoredShortcutsUserPrefsKey"
-        public static let TabTrayGroups = "TabTrayGroupsUserPrefsKey"
         public static let TopSiteSection = "TopSitesUserPrefsKey"
+    }
+
+    public struct UserFeatureFlagPrefs {
+        public static let SponsoredShortcuts = "SponsoredShortcutsUserPrefsKey"
     }
 
     // Firefox contextual hint
@@ -120,6 +120,10 @@ public struct PrefsKeys {
     // Widgetkit Key
     public static let WidgetKitSimpleTabKey = "WidgetKitSimpleTabKey"
     public static let WidgetKitSimpleTopTab = "WidgetKitSimpleTopTab"
+
+    // Shopping Keys
+    public static let Shopping2023EnableAds = "Shopping2023EnableAdsKey"
+    public static let Shopping2023OptIn = "Shopping2023OptInKey"
 
     // WallpaperManager Keys - Legacy
     public static let WallpaperManagerCurrentWallpaperObject = "WallpaperManagerCurrentWallpaperObject"

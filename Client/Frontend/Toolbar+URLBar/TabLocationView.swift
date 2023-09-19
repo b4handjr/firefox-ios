@@ -14,6 +14,7 @@ protocol TabLocationViewDelegate: AnyObject {
     func tabLocationViewDidTapShield(_ tabLocationView: TabLocationView)
     func tabLocationViewDidBeginDragInteraction(_ tabLocationView: TabLocationView)
     func tabLocationViewDidTapShare(_ tabLocationView: TabLocationView, button: UIButton)
+    func tabLocationViewDidTapShopping(_ tabLocationView: TabLocationView, button: UIButton)
 
     /// - returns: whether the long-press was handled by the delegate; i.e. return `false` when the conditions for even starting handling long-press were not satisfied
     @discardableResult
@@ -37,6 +38,8 @@ class TabLocationView: UIView, FeatureFlaggable {
     var longPressRecognizer: UILongPressGestureRecognizer!
     var tapRecognizer: UITapGestureRecognizer!
     var contentView: UIStackView!
+
+    var notificationCenter: NotificationProtocol = NotificationCenter.default
 
     /// Tracking protection button, gets updated from tabDidChangeContentBlocking
     private var blockerStatus: BlockerStatus = .noBlockedURLs
@@ -105,6 +108,16 @@ class TabLocationView: UIView, FeatureFlaggable {
         shareButton.clipsToBounds = false
         shareButton.contentHorizontalAlignment = .center
         shareButton.accessibilityIdentifier = AccessibilityIdentifiers.Toolbar.shareButton
+        shareButton.accessibilityLabel = .TabLocationShareAccessibilityLabel
+    }
+
+    private lazy var shoppingButton: UIButton = .build { button in
+        button.addTarget(self, action: #selector(self.didPressShoppingButton(_:)), for: .touchUpInside)
+        button.isHidden = true
+        button.setImage(UIImage(named: StandardImageIdentifiers.Large.shopping)?.withRenderingMode(.alwaysTemplate), for: .normal)
+        button.imageView?.contentMode = .scaleAspectFit
+        button.accessibilityLabel = .TabLocationShoppingAccessibilityLabel
+        button.accessibilityIdentifier = AccessibilityIdentifiers.Toolbar.shoppingButton
     }
 
     private lazy var readerModeButton: ReaderModeButton = .build { readerModeButton in
@@ -139,6 +152,7 @@ class TabLocationView: UIView, FeatureFlaggable {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
+        setupNotifications(forObserver: self, observing: [.FakespotViewControllerDidDismiss])
         register(self, forTabEvents: .didGainFocus, .didToggleDesktopMode, .didChangeContentBlocking)
         longPressRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(longPressLocation))
         longPressRecognizer.delegate = self
@@ -152,18 +166,19 @@ class TabLocationView: UIView, FeatureFlaggable {
         let space1px = UIView.build()
         space1px.widthAnchor.constraint(equalToConstant: 1).isActive = true
 
-        let subviews = [trackingProtectionButton, space1px, urlTextField, readerModeButton, shareButton, reloadButton]
+        let subviews = [trackingProtectionButton, space1px, urlTextField, shoppingButton, readerModeButton, shareButton, reloadButton]
         contentView = UIStackView(arrangedSubviews: subviews)
         contentView.distribution = .fill
         contentView.alignment = .center
         contentView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(contentView)
-
         contentView.edges(equalTo: self)
 
         NSLayoutConstraint.activate([
             trackingProtectionButton.widthAnchor.constraint(equalToConstant: UX.buttonSize),
             trackingProtectionButton.heightAnchor.constraint(equalToConstant: UX.buttonSize),
+            shoppingButton.widthAnchor.constraint(equalToConstant: UX.buttonSize),
+            shoppingButton.heightAnchor.constraint(equalToConstant: UX.buttonSize),
             readerModeButton.widthAnchor.constraint(equalToConstant: UX.buttonSize),
             readerModeButton.heightAnchor.constraint(equalToConstant: UX.buttonSize),
             shareButton.heightAnchor.constraint(equalToConstant: UX.buttonSize),
@@ -254,8 +269,28 @@ class TabLocationView: UIView, FeatureFlaggable {
     }
 
     @objc
+    func didPressShoppingButton(_ button: UIButton) {
+        button.isSelected = true
+        delegate?.tabLocationViewDidTapShopping(self, button: button)
+    }
+
+    @objc
     func readerModeCustomAction() -> Bool {
         return delegate?.tabLocationViewDidLongPressReaderMode(self) ?? false
+    }
+
+    func updateShoppingButtonVisibility(for tab: Tab) {
+        guard let url else {
+            shoppingButton.isHidden = true
+            return
+        }
+        let environment = featureFlags.isCoreFeatureEnabled(.useStagingFakespotAPI) ? FakespotEnvironment.staging : .prod
+        let product = ShoppingProduct(url: url, client: FakespotClient(environment: environment))
+        let shouldHideButton = !product.isShoppingButtonVisible || tab.isPrivate
+        shoppingButton.isHidden = shouldHideButton
+        if !shouldHideButton {
+            TelemetryWrapper.recordEvent(category: .action, method: .view, object: .shoppingButton)
+        }
     }
 
     private func updateTextWithURL() {
@@ -272,23 +307,24 @@ class TabLocationView: UIView, FeatureFlaggable {
 
     private func setTrackingProtection(theme: Theme) {
         var lockImage: UIImage?
-        if hasSecureContent {
-            let imageID = theme.type.getThemedImageName(name: ImageIdentifiers.lockBlocked)
-            lockImage = UIImage(imageLiteralResourceName: imageID)
+        if !hasSecureContent {
+            lockImage = UIImage(imageLiteralResourceName: StandardImageIdentifiers.Large.lockSlash)
         } else if let tintColor = trackingProtectionButton.tintColor {
-            lockImage = UIImage(imageLiteralResourceName: ImageIdentifiers.Large.lock)
+            lockImage = UIImage(imageLiteralResourceName: StandardImageIdentifiers.Large.lock)
                 .withTintColor(tintColor, renderingMode: .alwaysTemplate)
         }
 
         switch blockerStatus {
-        case .blocking, .noBlockedURLs:
+        case .blocking, .noBlockedURLs, .disabled:
             trackingProtectionButton.setImage(lockImage, for: .normal)
+            trackingProtectionButton.accessibilityLabel = hasSecureContent ?
+                .TabLocationETPOnSecureAccessibilityLabel : .TabLocationETPOnNotSecureAccessibilityLabel
         case .safelisted:
             if let smallDotImage = UIImage(systemName: ImageIdentifiers.circleFill)?.withTintColor(theme.colors.iconAccentBlue) {
                 trackingProtectionButton.setImage(lockImage?.overlayWith(image: smallDotImage), for: .normal)
+                trackingProtectionButton.accessibilityLabel = hasSecureContent ?
+                    .TabLocationETPOffSecureAccessibilityLabel : .TabLocationETPOffNotSecureAccessibilityLabel
             }
-        case .disabled:
-            trackingProtectionButton.setImage(lockImage, for: .normal)
         }
     }
 }
@@ -302,7 +338,8 @@ private extension TabLocationView {
     func setReaderModeState(_ newReaderModeState: ReaderModeState) {
         let wasHidden = readerModeButton.isHidden
         self.readerModeButton.readerModeState = newReaderModeState
-        readerModeButton.isHidden = (newReaderModeState == ReaderModeState.unavailable)
+
+        readerModeButton.isHidden = !shoppingButton.isHidden || (newReaderModeState == .unavailable)
         if wasHidden != readerModeButton.isHidden {
             UIAccessibility.post(notification: UIAccessibility.Notification.layoutChanged, argument: nil)
             if !readerModeButton.isHidden {
@@ -315,6 +352,16 @@ private extension TabLocationView {
         UIView.animate(withDuration: 0.1, animations: { () -> Void in
             self.readerModeButton.alpha = newReaderModeState == .unavailable ? 0 : 1
         })
+    }
+}
+
+extension TabLocationView: Notifiable {
+    func handleNotifications(_ notification: Notification) {
+        switch notification.name {
+        case .FakespotViewControllerDidDismiss:
+            shoppingButton.isSelected = false
+        default: break
+        }
     }
 }
 
@@ -369,6 +416,10 @@ extension TabLocationView: ThemeApplicable {
         reloadButton.applyTheme(theme: theme)
         menuBadge.badge.tintBackground(color: theme.colors.layer3)
         setTrackingProtection(theme: theme)
+        shoppingButton.tintColor = theme.colors.textPrimary
+        shoppingButton.setImage(UIImage(named: StandardImageIdentifiers.Large.shopping)?
+            .withTintColor(theme.colors.actionPrimary),
+                                for: .selected)
     }
 }
 
@@ -384,7 +435,7 @@ extension TabLocationView: TabEventHandler {
             trackingProtectionButton.alpha = 1.0
             let themeManager: ThemeManager = AppContainer.shared.resolve()
             self.blockerStatus = blocker.status
-            self.hasSecureContent = !(tab.webView?.hasOnlySecureContent ?? false)
+            self.hasSecureContent = (tab.webView?.hasOnlySecureContent ?? false)
             setTrackingProtection(theme: themeManager.currentTheme)
         }
     }

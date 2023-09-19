@@ -11,13 +11,7 @@ extension BrowserViewController {
 
     @objc
     func openSettingsKeyCommand() {
-        if CoordinatorFlagManager.isSettingsCoordinatorEnabled {
-            navigationHandler?.show(settings: .general)
-        } else {
-            ensureMainThread { [self] in
-                self.legacyShowSettings(deeplink: nil)
-            }
-        }
+        navigationHandler?.show(settings: .general)
     }
 
     @objc
@@ -41,13 +35,17 @@ extension BrowserViewController {
 
     @objc
     func openClearHistoryPanelKeyCommand() {
-        guard let libraryViewController = self.libraryViewController else {
-            let clearHistoryHelper = ClearHistorySheetProvider(profile: profile, tabManager: tabManager)
-            clearHistoryHelper.showClearRecentHistory(onViewController: self)
-            return
-        }
+        if CoordinatorFlagManager.isLibraryCoordinatorEnabled {
+            navigationHandler?.show(homepanelSection: .history)
+        } else {
+            guard let libraryViewController = self.libraryViewController else {
+                let clearHistoryHelper = ClearHistorySheetProvider(profile: profile, tabManager: tabManager)
+                clearHistoryHelper.showClearRecentHistory(onViewController: self)
+                return
+            }
 
-        libraryViewController.viewModel.selectedPanel = .history
+            libraryViewController.viewModel.selectedPanel = .history
+        }
         NotificationCenter.default.post(name: .OpenClearRecentHistory, object: nil)
     }
 
@@ -56,9 +54,7 @@ extension BrowserViewController {
         guard let tab = tabManager.selectedTab,
               let url = tab.canonicalURL?.displayURL else { return }
 
-        if CoordinatorFlagManager.isCoordinatorEnabled, !contentContainer.hasHomepage {
-            addBookmark(url: url.absoluteString, title: tab.title)
-        } else if homepageViewController?.view.alpha == 0 {
+        if !contentContainer.hasHomepage {
             addBookmark(url: url.absoluteString, title: tab.title)
         }
     }
@@ -72,9 +68,7 @@ extension BrowserViewController {
 
         guard let tab = tabManager.selectedTab else { return }
 
-        if CoordinatorFlagManager.isCoordinatorEnabled, !contentContainer.hasHomepage {
-            tab.reload()
-        } else if homepageViewController?.view.alpha == 0 {
+        if !contentContainer.hasHomepage {
             tab.reload()
         }
     }
@@ -87,9 +81,7 @@ extension BrowserViewController {
                                      extras: ["action": "reload-no-cache"])
         guard let tab = tabManager.selectedTab else { return }
 
-        if CoordinatorFlagManager.isCoordinatorEnabled, !contentContainer.hasHomepage {
-            tab.reload(bypassCache: true)
-        } else if homepageViewController?.view.alpha == 0 {
+        if !contentContainer.hasHomepage {
             tab.reload(bypassCache: true)
         }
     }
@@ -103,9 +95,7 @@ extension BrowserViewController {
 
         guard let tab = tabManager.selectedTab, tab.canGoBack else { return }
 
-        if CoordinatorFlagManager.isCoordinatorEnabled, !contentContainer.hasHomepage {
-            tab.goBack()
-        } else if homepageViewController?.view.alpha == 0 {
+        if !contentContainer.hasHomepage {
             tab.goBack()
         }
     }
@@ -119,9 +109,7 @@ extension BrowserViewController {
 
         guard let tab = tabManager.selectedTab, tab.canGoForward else { return }
 
-        if CoordinatorFlagManager.isCoordinatorEnabled, !contentContainer.hasHomepage {
-            tab.goForward()
-        } else if homepageViewController?.view.alpha == 0 {
+        if !contentContainer.hasHomepage {
             tab.goForward()
         }
     }
@@ -143,9 +131,7 @@ extension BrowserViewController {
     private func findInPage(withText text: String) {
         guard let tab = tabManager.selectedTab else { return }
 
-        if CoordinatorFlagManager.isCoordinatorEnabled, !contentContainer.hasHomepage {
-            self.tab(tab, didSelectFindInPageForSelection: text)
-        } else if homepageViewController?.view.alpha == 0 {
+        if !contentContainer.hasHomepage {
             self.tab(tab, didSelectFindInPageForSelection: text)
         }
     }
@@ -341,9 +327,7 @@ extension BrowserViewController {
     func zoomIn() {
         guard let currentTab = tabManager.selectedTab else { return }
 
-        if CoordinatorFlagManager.isCoordinatorEnabled, !contentContainer.hasHomepage {
-            currentTab.zoomIn()
-        } else if homepageViewController?.view.alpha == 0 {
+        if !contentContainer.hasHomepage {
             currentTab.zoomIn()
         }
     }
@@ -352,9 +336,7 @@ extension BrowserViewController {
     func zoomOut() {
         guard let currentTab = tabManager.selectedTab else { return }
 
-        if CoordinatorFlagManager.isCoordinatorEnabled, !contentContainer.hasHomepage {
-            currentTab.zoomOut()
-        } else if homepageViewController?.view.alpha == 0 {
+        if !contentContainer.hasHomepage {
             currentTab.zoomOut()
         }
     }
@@ -363,9 +345,7 @@ extension BrowserViewController {
     func resetZoom() {
         guard let currentTab = tabManager.selectedTab else { return }
 
-        if CoordinatorFlagManager.isCoordinatorEnabled, !contentContainer.hasHomepage {
-            currentTab.resetZoom()
-        } else if homepageViewController?.view.alpha == 0 {
+        if !contentContainer.hasHomepage {
             currentTab.resetZoom()
         }
     }

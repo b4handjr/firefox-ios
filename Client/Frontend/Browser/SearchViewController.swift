@@ -78,7 +78,7 @@ class SearchViewController: SiteTableViewController,
     private let searchEngineScrollViewContent = UIView()
 
     private lazy var bookmarkedBadge: UIImage = {
-        return UIImage(named: "bookmark_results")!
+        return UIImage(named: StandardImageIdentifiers.Medium.bookmarkBadgeFillBlue50)!
     }()
 
     private lazy var openAndSyncTabBadge: UIImage = {
@@ -634,7 +634,7 @@ class SearchViewController: SiteTableViewController,
         guard searchPhrase != query, let upperBound = range?.upperBound else { return nil }
 
         let attributedString = searchPhrase.attributedText(boldIn: upperBound..<searchPhrase.endIndex,
-                                                           font: DynamicFontHelper().DefaultStandardFont)
+                                                           font: DefaultDynamicFontHelper.preferredFont(withTextStyle: .body, size: 17, weight: .regular))
         return attributedString
     }
 
@@ -653,7 +653,7 @@ class SearchViewController: SiteTableViewController,
                 }
                 oneLineCell.leftImageView.contentMode = .center
                 oneLineCell.leftImageView.layer.borderWidth = 0
-                oneLineCell.leftImageView.image = UIImage(named: SearchViewControllerUX.SearchImage)
+                oneLineCell.leftImageView.manuallySetImage(UIImage(named: SearchViewControllerUX.SearchImage) ?? UIImage())
                 oneLineCell.leftImageView.tintColor = themeManager.currentTheme.colors.iconPrimary
                 oneLineCell.leftImageView.backgroundColor = nil
                 let appendButton = UIButton(type: .roundedRect)
@@ -749,7 +749,7 @@ class SearchViewController: SiteTableViewController,
     }
 
     private var searchAppendImage: UIImage? {
-        var searchAppendImage = UIImage(named: ImageIdentifiers.Large.appendUp)
+        var searchAppendImage = UIImage(named: StandardImageIdentifiers.Large.appendUp)
 
         if viewModel.isBottomSearchBar, let image = searchAppendImage, let cgImage = image.cgImage {
             searchAppendImage = UIImage(

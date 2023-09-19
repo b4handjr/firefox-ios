@@ -24,6 +24,10 @@ public protocol ThemeColourPalette {
     var layerAccentPrivateNonOpaque: UIColor { get }
     var layerLightGrey30: UIColor { get }
     var layerSepia: UIColor { get }
+    var layerInfo: UIColor { get }
+    var layerConfirmation: UIColor { get }
+    var layerWarning: UIColor { get }
+    var layerError: UIColor { get }
 
     // MARK: - Actions
     var actionPrimary: UIColor { get }
@@ -34,6 +38,9 @@ public protocol ThemeColourPalette {
     var formKnob: UIColor { get }
     var indicatorActive: UIColor { get }
     var indicatorInactive: UIColor { get }
+    var actionConfirmation: UIColor { get }
+    var actionWarning: UIColor { get }
+    var actionError: UIColor { get }
 
     // MARK: - Text
     var textPrimary: UIColor { get }
@@ -42,7 +49,8 @@ public protocol ThemeColourPalette {
     var textDisabled: UIColor { get }
     var textWarning: UIColor { get }
     var textAccent: UIColor { get }
-    var textOnColor: UIColor { get }
+    var textOnDark: UIColor { get }
+    var textOnLight: UIColor { get }
     var textInverted: UIColor { get }
 
     // MARK: - Icons

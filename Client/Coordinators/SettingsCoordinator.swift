@@ -5,6 +5,7 @@
 import Common
 import Foundation
 import Shared
+import Redux
 
 protocol SettingsCoordinatorDelegate: AnyObject {
     func openURLinNewTab(_ url: URL)
@@ -72,7 +73,7 @@ class SettingsCoordinator: BaseCoordinator,
             return viewController
 
         case .homePage:
-            let viewController = HomePageSettingViewController(prefs: profile.prefs)
+            let viewController = HomePageSettingViewController(prefs: profile.prefs, settingsDelegate: self)
             viewController.profile = profile
             return viewController
 
@@ -85,9 +86,7 @@ class SettingsCoordinator: BaseCoordinator,
             return viewController
 
         case .clearPrivateData:
-            let viewController = ClearPrivateDataTableViewController()
-            viewController.profile = profile
-            viewController.tabManager = tabManager
+            let viewController = ClearPrivateDataTableViewController(profile: profile, tabManager: tabManager)
             return viewController
 
         case .fxa:
@@ -111,13 +110,16 @@ class SettingsCoordinator: BaseCoordinator,
                     theme: themeManager.currentTheme
                 )
                 let wallpaperVC = WallpaperSettingsViewController(viewModel: viewModel)
+                wallpaperVC.settingsDelegate = self
                 return wallpaperVC
             } else {
                 return nil
             }
 
         case .contentBlocker:
-            let contentBlockerVC = ContentBlockerSettingViewController(prefs: profile.prefs)
+            let contentBlockerVC = ContentBlockerSettingViewController(prefs: profile.prefs,
+                                                                       isShownFromSettings: false)
+            contentBlockerVC.settingsDelegate = self
             contentBlockerVC.profile = profile
             contentBlockerVC.tabManager = tabManager
             return contentBlockerVC
@@ -130,7 +132,9 @@ class SettingsCoordinator: BaseCoordinator,
             return SearchBarSettingsViewController(viewModel: viewModel)
 
         case .topSites:
-            return TopSitesSettingsViewController()
+            let viewController = TopSitesSettingsViewController()
+            viewController.profile = profile
+            return viewController
 
         case .creditCard, .password:
             return nil // Needs authentication, decision handled by VC
@@ -188,14 +192,13 @@ class SettingsCoordinator: BaseCoordinator,
     }
 
     func pressedClearPrivateData() {
-        let viewController = ClearPrivateDataTableViewController()
-        viewController.profile = profile
-        viewController.tabManager = tabManager
+        let viewController = ClearPrivateDataTableViewController(profile: profile, tabManager: tabManager)
         router.push(viewController)
     }
 
     func pressedContentBlocker() {
         let viewController = ContentBlockerSettingViewController(prefs: profile.prefs)
+        viewController.settingsDelegate = self
         viewController.profile = profile
         viewController.tabManager = tabManager
         router.push(viewController)
@@ -222,7 +225,8 @@ class SettingsCoordinator: BaseCoordinator,
     // MARK: GeneralSettingsDelegate
 
     func pressedHome() {
-        let viewController = HomePageSettingViewController(prefs: profile.prefs)
+        let viewController = HomePageSettingViewController(prefs: profile.prefs,
+                                                           settingsDelegate: self)
         viewController.profile = profile
         router.push(viewController)
     }
@@ -261,6 +265,9 @@ class SettingsCoordinator: BaseCoordinator,
     }
 
     func pressedTheme() {
+        if ReduxFlagManager.isReduxEnabled {
+            store.dispatch(ActiveScreensStateAction.showScreen(.themeSettings))
+        }
         router.push(ThemeSettingsController())
     }
 

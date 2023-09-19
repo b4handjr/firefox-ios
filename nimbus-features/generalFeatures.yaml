@@ -2,21 +2,7 @@ features:
   general-app-features:
     description: The feature that contains feature flags for the entire application
     variables:
-      pull-to-refresh:
-        description: "This property defines whether or not the feature is enabled"
-        type: GeneralFeature
-        default:
-          {
-            "status": true
-          }
       report-site-issue:
-        description: "This property defines whether or not the feature is enabled"
-        type: GeneralFeature
-        default:
-          {
-            "status": false
-          }
-      shake-to-restore:
         description: "This property defines whether or not the feature is enabled"
         type: GeneralFeature
         default:
@@ -26,25 +12,13 @@ features:
     defaults:
       - channel: beta
         value: {
-          "pull-to-refresh": {
-            "status": true
-          },
           "report-site-issue": {
-            "status": true
-          },
-          "shake-to-restore": {
             "status": true
           }
         }
       - channel: developer
         value: {
-          "pull-to-refresh": {
-            "status": true
-          },
           "report-site-issue": {
-            "status": true
-          },
-          "shake-to-restore": {
             "status": true
           }
         }

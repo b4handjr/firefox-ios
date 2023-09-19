@@ -32,8 +32,8 @@ class TopTabsViewController: UIViewController, Themeable, Notifiable {
     // MARK: - Properties
     let tabManager: TabManager
     weak var delegate: TopTabsDelegate?
-    private var topTabDisplayManager: TabDisplayManager!
-    var tabCellIdentifier: TabDisplayer.TabCellIdentifier = TopTabCell.cellIdentifier
+    private var topTabDisplayManager: LegacyTabDisplayManager!
+    var tabCellIdentifier: TabDisplayerDelegate.TabCellIdentifier = TopTabCell.cellIdentifier
     var profile: Profile
     var themeManager: ThemeManager
     var themeObserver: NSObjectProtocol?
@@ -60,7 +60,7 @@ class TopTabsViewController: UIViewController, Themeable, Notifiable {
     }
 
     private lazy var newTab: UIButton = .build { button in
-        button.setImage(UIImage.templateImageNamed(ImageIdentifiers.Large.plus), for: .normal)
+        button.setImage(UIImage.templateImageNamed(StandardImageIdentifiers.Large.plus), for: .normal)
         button.semanticContentAttribute = .forceLeftToRight
         button.addTarget(self, action: #selector(TopTabsViewController.newTabTapped), for: .touchUpInside)
         button.accessibilityIdentifier = AccessibilityIdentifiers.Toolbar.addNewTabButton
@@ -100,13 +100,13 @@ class TopTabsViewController: UIViewController, Themeable, Notifiable {
         self.themeManager = themeManager
         self.notificationCenter = notificationCenter
         super.init(nibName: nil, bundle: nil)
-        topTabDisplayManager = TabDisplayManager(collectionView: self.collectionView,
-                                                 tabManager: self.tabManager,
-                                                 tabDisplayer: self,
-                                                 reuseID: TopTabCell.cellIdentifier,
-                                                 tabDisplayType: .TopTabTray,
-                                                 profile: profile,
-                                                 theme: themeManager.currentTheme)
+        topTabDisplayManager = LegacyTabDisplayManager(collectionView: self.collectionView,
+                                                       tabManager: self.tabManager,
+                                                       tabDisplayer: self,
+                                                       reuseID: TopTabCell.cellIdentifier,
+                                                       tabDisplayType: .TopTabTray,
+                                                       profile: profile,
+                                                       theme: themeManager.currentTheme)
         self.tabManager.tabDisplayType = .TopTabTray
         collectionView.dataSource = topTabDisplayManager
         collectionView.delegate = tabLayoutDelegate
@@ -285,7 +285,7 @@ class TopTabsViewController: UIViewController, Themeable, Notifiable {
     }
 }
 
-extension TopTabsViewController: TabDisplayer {
+extension TopTabsViewController: TabDisplayerDelegate {
     func focusSelectedTab() {
         self.scrollToCurrentTab(true)
         self.handleFadeOutAfterTabSelection()

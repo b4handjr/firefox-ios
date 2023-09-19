@@ -28,7 +28,7 @@ class IntroViewController: UIViewController,
     var hasRegisteredForDefaultBrowserNotification = false
 
     private lazy var closeButton: UIButton = .build { button in
-        button.setImage(UIImage(named: ImageIdentifiers.bottomSheetClose), for: .normal)
+        button.setImage(UIImage(named: StandardImageIdentifiers.ExtraLarge.crossCircleFill), for: .normal)
         button.addTarget(self, action: #selector(self.closeOnboarding), for: .touchUpInside)
         button.accessibilityIdentifier = AccessibilityIdentifiers.Onboarding.closeButton
     }
@@ -225,14 +225,19 @@ extension IntroViewController: OnboardingCardDelegate {
             with: action,
             and: isPrimaryButton)
 
+        guard let introViewModel = viewModel as? IntroViewModel else { return }
         switch action {
         case .requestNotifications:
+            introViewModel.chosenOptions.insert(.askForNotificationPermission)
+            introViewModel.updateOnboardingUserActivationEvent()
             askForNotificationPermission(from: cardName)
         case .nextCard:
             showNextPage(from: cardName) {
                 self.showNextPageCompletionForLastCard()
             }
         case .syncSignIn:
+            introViewModel.chosenOptions.insert(.syncSignIn)
+            introViewModel.updateOnboardingUserActivationEvent()
             let fxaPrams = FxALaunchParams(entrypoint: .introOnboarding, query: [:])
             presentSignToSync(
                 with: fxaPrams,
@@ -243,9 +248,11 @@ extension IntroViewController: OnboardingCardDelegate {
                 }
             }
         case .setDefaultBrowser:
+            introViewModel.chosenOptions.insert(.setAsDefaultBrowser)
+            introViewModel.updateOnboardingUserActivationEvent()
             registerForNotification()
             DefaultApplicationHelper().openSettings()
-        case .openDefaultBrowserPopup:
+        case .openInstructionsPopup:
             presentDefaultBrowserPopup(
                 from: cardName,
                 completionIfLastCard: { self.showNextPageCompletionForLastCard() })

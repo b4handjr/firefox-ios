@@ -11,16 +11,15 @@ final class NimbusFeatureFlagLayer {
                                      from nimbus: FxNimbus = FxNimbus.shared
     ) -> Bool {
         switch featureID {
-        case .autopushFeature:
-            return checkAutopushFeature(from: nimbus)
-        case .pullToRefresh,
-                .reportSiteIssue,
-                .shakeToRestore:
+        case .reportSiteIssue:
             return checkGeneralFeature(for: featureID, from: nimbus)
 
         case .bottomSearchBar,
                 .searchHighlights:
             return checkAwesomeBarFeature(for: featureID, from: nimbus)
+
+        case .credentialAutofillCoordinatorRefactor:
+            return checkCredentialAutofillCoordinatorRefactorFeature(from: nimbus)
 
         case .jumpBackIn,
                 .pocket,
@@ -32,30 +31,23 @@ final class NimbusFeatureFlagLayer {
         case .contextualHintForToolbar:
             return checkNimbusForContextualHintsFeature(for: featureID, from: nimbus)
 
-        case .coordinatorsRefactor:
-            return checkCoordinatorRefactorFeature(from: nimbus)
-
         case .libraryCoordinatorRefactor:
             return checkLibraryCoordinatorRefactorFeature(from: nimbus)
 
-        case .settingsCoordinatorRefactor:
-            return checkSettingsCoordinatorRefactorFeature(from: nimbus)
         case .etpCoordinatorRefactor:
             return checkEtpCoordinatorRefactorFeature(from: nimbus)
 
-        case .jumpBackInSyncedTab:
-            return checkNimbusForJumpBackInSyncedTabFeature(using: nimbus)
+        case .fakespotFeature:
+            return checkFakespotFeature(from: nimbus)
 
         case .inactiveTabs:
             return checkTabTrayFeature(for: featureID, from: nimbus)
 
-        case .historyGroups,
-                .tabTrayGroups:
+        case .historyGroups:
             return checkGroupingFeature(for: featureID, from: nimbus)
 
-        case .onboardingUpgrade,
-                .onboardingFreshInstall:
-            return checkNimbusForOnboardingFeature(for: featureID, from: nimbus)
+        case .feltPrivacyUI:
+            return checkFeltPrivacyUIFeature(from: nimbus)
 
         case .reduxIntegration:
             return checkReduxIntegrationFeature(from: nimbus)
@@ -67,14 +59,11 @@ final class NimbusFeatureFlagLayer {
                 .shareToolbarChanges:
             return checkNimbusForShareSheet(for: featureID, from: nimbus)
 
-        case .sponsoredTiles:
-            return checkSponsoredTilesFeature(from: nimbus)
-
         case .startAtHome:
             return checkNimbusConfigForStartAtHome(using: nimbus) != .disabled
 
-        case .tabStorageRefactor:
-            return checkTabStorageRefactorFeature(from: nimbus)
+        case .tabTrayRefactor:
+            return checkTabTrayRefactorFeature(from: nimbus)
 
         case .wallpapers,
                 .wallpaperVersion:
@@ -88,12 +77,6 @@ final class NimbusFeatureFlagLayer {
 
         case .zoomFeature:
             return checkZoomFeature(from: nimbus)
-
-        case .engagementNotificationStatus:
-            return checkNimbusForEngagementNotification(for: featureID, from: nimbus)
-
-        case .notificationSettings:
-            return checkNimbusForNotificationSettings(for: featureID, from: nimbus)
         }
     }
 
@@ -115,16 +98,9 @@ final class NimbusFeatureFlagLayer {
         let config = nimbus.features.generalAppFeatures.value()
 
         switch featureID {
-        case .pullToRefresh: return config.pullToRefresh.status
         case .reportSiteIssue: return config.reportSiteIssue.status
-        case .shakeToRestore: return config.shakeToRestore.status
         default: return false
         }
-    }
-
-    private func checkAutopushFeature(from nimbus: FxNimbus) -> Bool {
-        let config = nimbus.features.autopushFeature.value()
-        return config.useNewAutopushClient
     }
 
     private func checkAwesomeBarFeature(for featureID: NimbusFeatureFlagID,
@@ -159,10 +135,6 @@ final class NimbusFeatureFlagLayer {
         return status
     }
 
-    private func checkNimbusForJumpBackInSyncedTabFeature(using nimbus: FxNimbus) -> Bool {
-        return nimbus.features.homescreenFeature.value().jumpBackInSyncedTab
-    }
-
     private func checkNimbusForContextualHintsFeature(
         for featureID: NimbusFeatureFlagID,
         from nimbus: FxNimbus
@@ -179,18 +151,13 @@ final class NimbusFeatureFlagLayer {
         return status
     }
 
-    private func checkCoordinatorRefactorFeature(from nimbus: FxNimbus) -> Bool {
-        let config = nimbus.features.coordinatorsRefactorFeature.value()
-        return config.enabled
-    }
-
     private func checkLibraryCoordinatorRefactorFeature(from nimbus: FxNimbus) -> Bool {
         let config = nimbus.features.libraryCoordinatorRefactor.value()
         return config.enabled
     }
 
-    private func checkSettingsCoordinatorRefactorFeature(from nimbus: FxNimbus) -> Bool {
-        let config = nimbus.features.settingsCoordinatorRefactor.value()
+    private func checkCredentialAutofillCoordinatorRefactorFeature(from nimbus: FxNimbus) -> Bool {
+        let config = nimbus.features.credentialAutofillCoordinatorRefactor.value()
         return config.enabled
     }
 
@@ -224,19 +191,19 @@ final class NimbusFeatureFlagLayer {
         return nimbus.features.homescreenFeature.value().pocketSponsoredStories
     }
 
-    private func checkSponsoredTilesFeature(from nimbus: FxNimbus) -> Bool {
-        let config = nimbus.features.homescreenFeature.value()
-        return config.sponsoredTiles.status
-    }
-
     private func checkReduxIntegrationFeature(from nimbus: FxNimbus) -> Bool {
         let config = nimbus.features.reduxIntegrationFeature.value()
         return config.enabled
     }
 
-    private func checkTabStorageRefactorFeature(from nimbus: FxNimbus) -> Bool {
-        let config = nimbus.features.tabStorageRefactorFeature.value()
+    private func checkTabTrayRefactorFeature(from nimbus: FxNimbus) -> Bool {
+        let config = nimbus.features.tabTrayRefactorFeature.value()
         return config.enabled
+    }
+
+    private func checkFeltPrivacyUIFeature(from nimbus: FxNimbus ) -> Bool {
+        let config = nimbus.features.privateBrowsing.value()
+        return config.feltPrivacyEnabled
     }
 
     public func checkNimbusForCreditCardAutofill(
@@ -248,41 +215,6 @@ final class NimbusFeatureFlagLayer {
             case .creditCardAutofillStatus: return config.creditCardAutofillStatus
             default: return false
             }
-    }
-
-    public func checkNimbusForEngagementNotification(
-        for featureID: NimbusFeatureFlagID,
-        from nimbus: FxNimbus) -> Bool {
-            let config = nimbus.features.engagementNotificationFeature.value()
-
-            switch featureID {
-            case .engagementNotificationStatus: return config.engagementNotificationFeatureStatus
-            default: return false
-            }
-    }
-
-    public func checkNimbusForNotificationSettings(
-        for featureID: NimbusFeatureFlagID,
-        from nimbus: FxNimbus) -> Bool {
-            let config = nimbus.features.notificationSettingsFeature.value()
-
-            switch featureID {
-            case .notificationSettings: return config.notificationSettingsFeatureStatus
-            default: return false
-            }
-    }
-
-    private func checkNimbusForOnboardingFeature(
-        for featureID: NimbusFeatureFlagID,
-        from nimbus: FxNimbus
-    ) -> Bool {
-        let config = nimbus.features.onboardingFeature.value()
-
-        switch featureID {
-        case .onboardingUpgrade: return config.upgradeFlow
-        case .onboardingFreshInstall: return config.firstRunFlow
-        default: return false
-        }
     }
 
     public func checkNimbusForShareSheet(
@@ -322,13 +254,18 @@ final class NimbusFeatureFlagLayer {
 
         switch featureID {
         case .historyGroups: nimbusID = SearchTermGroups.historyGroups
-        case .tabTrayGroups: nimbusID = SearchTermGroups.tabTrayGroups
         default: return false
         }
 
         guard let status = config.groupingEnabled[nimbusID] else { return false }
 
         return status
+    }
+
+    private func checkFakespotFeature(from nimbus: FxNimbus) -> Bool {
+        let config = nimbus.features.shopping2023.value()
+
+        return config.status
     }
 
     private func checkZoomFeature(from nimbus: FxNimbus) -> Bool {
