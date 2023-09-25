@@ -327,9 +327,8 @@ class TelemetryWrapper: TelemetryWrapperProtocol, FeatureFlaggable {
         let isPocketEnabled = featureFlags.isFeatureEnabled(.pocket, checking: .buildAndUser)
         GleanMetrics.Preferences.pocket.set(isPocketEnabled)
 
-        if let startAtHomeSetting: StartAtHomeSetting = featureFlags.getCustomState(for: .startAtHome) {
-            GleanMetrics.Preferences.openingScreen.set(startAtHomeSetting.rawValue)
-        }
+        let startAtHomeOption = prefs.stringForKey(PrefsKeys.UserFeatureFlagPrefs.StartAtHome) ?? StartAtHomeSetting.afterFourHours.rawValue
+        GleanMetrics.Preferences.openingScreen.set(startAtHomeOption)
     }
 
     @objc
@@ -403,11 +402,13 @@ extension TelemetryWrapper {
         case shoppingRecentReviews = "shopping-recent-reviews"
         case shoppingSettingsCardTurnOffButton = "shopping-settings-card-turn-off-button"
         case shoppingSettingsChevronButton = "shopping-settings-chevron-button"
+        case shoppingOnboarding = "shopping-onboarding"
         case shoppingOptIn = "shopping-opt-in"
         case shoppingNotNowButton = "shopping-not-now-button"
         case shoppingTermsOfUseButton = "shopping-terms-of-use-button"
         case shoppingPrivacyPolicyButton = "shopping-privacy-policy-button"
         case shoppingLearnMoreButton = "shopping-learn-more-button"
+        case shoppingLearnMoreReviewQualityButton = "shopping-learn-more-review-quality-button"
         case keyCommand = "key-command"
         case locationBar = "location-bar"
         case messaging = "messaging"
@@ -544,6 +545,7 @@ extension TelemetryWrapper {
         case inactiveTabTray = "inactiveTabTray"
         case reload = "reload"
         case reloadFromUrlBar = "reload-from-url-bar"
+        case restoreTabsAlert = "restore-tabs-alert"
         case fxaLoginWebpage = "fxa-login-webpage"
         case fxaLoginCompleteWebpage = "fxa-login-complete-webpage"
         case fxaRegistrationWebpage = "fxa-registration-webpage"
@@ -655,6 +657,7 @@ extension TelemetryWrapper {
         case pocketTilePosition = "pocketTilePosition"
         case fxHomepageOrigin = "fxHomepageOrigin"
         case tabsQuantity = "tabsQuantity"
+        case isRestoreTabsStarted = "is-restore-tabs-started"
         case awesomebarSearchTapType = "awesomebarSearchTapType"
 
         case preference = "pref"
@@ -872,6 +875,18 @@ extension TelemetryWrapper {
             GleanMetrics.Tabs.navigateTabBackSwipe.add()
         case(.action, .tap, .reloadFromUrlBar, _, _):
             GleanMetrics.Tabs.reloadFromUrlBar.add()
+        case(.action, .tap, .restoreTabsAlert, _, let extras):
+            if let isEnabled = extras?[EventExtraKey.isRestoreTabsStarted.rawValue] as? Bool {
+                let isEnabledExtra = GleanMetrics.Tabs.RestoreTabsAlertExtra(isEnabled: isEnabled)
+                GleanMetrics.Tabs.restoreTabsAlert.record(isEnabledExtra)
+            } else {
+                recordUninstrumentedMetrics(
+                    category: category,
+                    method: method,
+                    object: object,
+                    value: value,
+                    extras: extras)
+            }
 
         case(.information, .background, .tabNormalQuantity, _, let extras):
             if let quantity = extras?[EventExtraKey.tabsQuantity.rawValue] as? Int64 {
@@ -1039,6 +1054,8 @@ extension TelemetryWrapper {
             GleanMetrics.Shopping.settingsComponentOptedOut.record()
         case (.action, .view, .shoppingSettingsChevronButton, _, _):
             GleanMetrics.Shopping.surfaceSettingsExpandClicked.record()
+        case (.action, .view, .shoppingOnboarding, _, _):
+            GleanMetrics.Shopping.surfaceOnboardingDisplayed.record()
         case (.action, .tap, .shoppingOptIn, _, _):
             GleanMetrics.Shopping.surfaceOptInAccepted.record()
         case (.action, .tap, .shoppingNotNowButton, _, _):
@@ -1049,6 +1066,8 @@ extension TelemetryWrapper {
             GleanMetrics.Shopping.surfaceShowPrivacyPolicyClicked.record()
         case (.action, .tap, .shoppingLearnMoreButton, _, _):
             GleanMetrics.Shopping.surfaceLearnMoreClicked.record()
+        case (.action, .tap, .shoppingLearnMoreReviewQualityButton, _, _):
+            GleanMetrics.Shopping.surfaceShowQualityExplainerClicked.record()
 
         // MARK: Onboarding
         case (.action, .view, .onboardingCardView, _, let extras):

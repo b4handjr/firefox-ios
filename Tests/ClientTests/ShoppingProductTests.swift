@@ -245,10 +245,11 @@ extension ProductAnalyzeResponse {
 extension ProductAnalysisData {
     static let empty = ProductAnalysisData(
         productId: "",
-        grade: "",
+        grade: .a,
         adjustedRating: 0,
         needsAnalysis: false,
         analysisUrl: URL(string: "https://www.example.com")!,
-        highlights: Highlights(price: [], quality: [], competitiveness: [])
+        highlights: Highlights(price: [], quality: [], competitiveness: []),
+        pageNotSupported: true
     )
 }

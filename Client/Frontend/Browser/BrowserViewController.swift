@@ -937,10 +937,20 @@ class BrowserViewController: UIViewController,
         }
         let alert = UIAlertController.restoreTabsAlert(
             okayCallback: { _ in
+                let extra = [TelemetryWrapper.EventExtraKey.isRestoreTabsStarted.rawValue: true]
+                TelemetryWrapper.recordEvent(category: .action,
+                                             method: .tap,
+                                             object: .restoreTabsAlert,
+                                             extras: extra)
                 self.isCrashAlertShowing = false
                 self.tabManager.restoreTabs(true)
             },
             noCallback: { _ in
+                let extra = [TelemetryWrapper.EventExtraKey.isRestoreTabsStarted.rawValue: false]
+                TelemetryWrapper.recordEvent(category: .action,
+                                             method: .tap,
+                                             object: .restoreTabsAlert,
+                                             extras: extra)
                 self.isCrashAlertShowing = false
                 self.tabManager.selectTab(self.tabManager.addTab())
                 self.openUrlAfterRestore()
@@ -1355,7 +1365,6 @@ class BrowserViewController: UIViewController,
 
     func updateUIForReaderHomeStateForTab(_ tab: Tab, focusUrlBar: Bool = false) {
         updateURLBarDisplayURL(tab)
-        scrollController.showToolbars(animated: false)
 
         if let url = tab.url {
             if url.isReaderModeURL {
@@ -1404,9 +1413,17 @@ class BrowserViewController: UIViewController,
         })
     }
 
-    func presentSignInViewController(_ fxaOptions: FxALaunchParams, flowType: FxAPageType = .emailLoginFlow, referringPage: ReferringPage = .none) {
-        let vcToPresent = FirefoxAccountSignInViewController.getSignInOrFxASettingsVC(fxaOptions, flowType: flowType, referringPage: referringPage, profile: profile)
-        presentThemedViewController(navItemLocation: .Left, navItemText: .Close, vcBeingPresented: vcToPresent, topTabsVisible: UIDevice.current.userInterfaceIdiom == .pad)
+    func presentSignInViewController(_ fxaOptions: FxALaunchParams,
+                                     flowType: FxAPageType = .emailLoginFlow,
+                                     referringPage: ReferringPage = .none) {
+        let vcToPresent = FirefoxAccountSignInViewController.getSignInOrFxASettingsVC(fxaOptions,
+                                                                                      flowType: flowType,
+                                                                                      referringPage: referringPage,
+                                                                                      profile: profile)
+        presentThemedViewController(navItemLocation: .Left,
+                                    navItemText: .Close,
+                                    vcBeingPresented: vcToPresent,
+                                    topTabsVisible: UIDevice.current.userInterfaceIdiom == .pad)
     }
 
     func handle(query: String) {

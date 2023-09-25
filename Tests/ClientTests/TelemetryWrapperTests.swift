@@ -262,6 +262,11 @@ class TelemetryWrapperTests: XCTestCase {
         testEventMetricRecordingSuccess(metric: GleanMetrics.Shopping.surfaceDisplayed)
     }
 
+    func test_shoppingOnboardingDisplayed_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .action, method: .view, object: .shoppingOnboarding)
+        testEventMetricRecordingSuccess(metric: GleanMetrics.Shopping.surfaceOnboardingDisplayed)
+    }
+
     func test_shoppingSettingsComponentOptedOut_GleanIsCalled() {
         TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .shoppingSettingsCardTurnOffButton)
         testEventMetricRecordingSuccess(metric: GleanMetrics.Shopping.settingsComponentOptedOut)
@@ -295,6 +300,11 @@ class TelemetryWrapperTests: XCTestCase {
     func test_shoppingSurfaceOptInLearnMore_GleanIsCalled() {
         TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .shoppingLearnMoreButton)
         testEventMetricRecordingSuccess(metric: GleanMetrics.Shopping.surfaceLearnMoreClicked)
+    }
+
+    func test_shoppingSurfaceShowQualityExplainer_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .shoppingLearnMoreReviewQualityButton)
+        testEventMetricRecordingSuccess(metric: GleanMetrics.Shopping.surfaceShowQualityExplainerClicked)
     }
 
     // MARK: - Onboarding

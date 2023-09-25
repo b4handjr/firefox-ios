@@ -9,38 +9,57 @@ import Shared
 class FakespotViewModel {
     enum ViewState {
         case loading
+        case onboarding
         case loaded(ProductAnalysisData?)
         case error(Error)
 
-        var viewElements: [ViewElement] {
-            var elements: [ViewElement] = []
-
+        fileprivate var viewElements: [ViewElement] {
             switch self {
             case .loading:
-                elements = [.loadingView]
-
-            case .loaded:
-                elements = [.reliabilityCard,
-                    .adjustRatingCard,
-                    .highlightsCard,
-                    .qualityDeterminationCard,
-                    .settingsCard]
-
+                return [.loadingView]
+            case let .loaded(product):
+                if product?.cannotBeAnalyzedCardVisible == true {
+                    return [
+                        .messageCard(.productCannotBeAnalyzed),
+                        .qualityDeterminationCard,
+                        .settingsCard
+                    ]
+                } else if product?.notAnalyzedCardVisible == true {
+                    return [
+                        .noAnalysisCard,
+                        .qualityDeterminationCard,
+                        .settingsCard
+                    ]
+                } else if product?.notEnoughReviewsCardVisible == true {
+                    return [
+                        .messageCard(.notEnoughReviews),
+                        .qualityDeterminationCard,
+                        .settingsCard
+                    ]
+                } else {
+                    return [
+                        .reliabilityCard,
+                        .adjustRatingCard,
+                        .highlightsCard,
+                        .qualityDeterminationCard,
+                        .settingsCard
+                    ]
+                }
             case let .error(error):
                 let baseElements = [ViewElement.qualityDeterminationCard, .settingsCard]
                 if let error = error as NSError?, error.domain == NSURLErrorDomain, error.code == -1009 {
-                    return [.noConnectionError] + baseElements
+                    return [.messageCard(.noConnectionError)] + baseElements
                 } else {
-                    return [.genericError] + baseElements
+                    return [.messageCard(.genericError)] + baseElements
                 }
+            case .onboarding:
+                return [.onboarding]
             }
-
-            return elements
         }
 
-        var productData: ProductAnalysisData? {
+        fileprivate var productData: ProductAnalysisData? {
             switch self {
-            case .loading, .error: return nil
+            case .loading, .error, .onboarding: return nil
             case .loaded(let data): return data
             }
         }
@@ -48,15 +67,20 @@ class FakespotViewModel {
 
     enum ViewElement {
         case loadingView
-//        case onboarding // card not created yet (FXIOS-7270)
+        case onboarding
         case reliabilityCard
         case adjustRatingCard
         case highlightsCard
         case qualityDeterminationCard
         case settingsCard
         case noAnalysisCard
-        case genericError
-        case noConnectionError
+        case messageCard(MessageType)
+        enum MessageType {
+            case genericError
+            case productCannotBeAnalyzed
+            case noConnectionError
+            case notEnoughReviews
+        }
     }
 
     private(set) var state: ViewState = .loading {
@@ -68,7 +92,7 @@ class FakespotViewModel {
     var onStateChange: (() -> Void)?
 
     var viewElements: [ViewElement] {
-//        guard isOptedIn else { return [.onboarding] } // card not created yet (FXIOS-7270)
+        guard isOptedIn else { return [.onboarding] }
 
         return state.viewElements
     }
@@ -79,11 +103,9 @@ class FakespotViewModel {
     }
 
     var reliabilityCardViewModel: FakespotReliabilityCardViewModel? {
-        guard let grade = state.productData?.grade,
-                let rating = FakespotReliabilityRating(rawValue: grade)
-        else { return nil }
+        guard let grade = state.productData?.grade else { return nil }
 
-        return FakespotReliabilityCardViewModel(rating: rating)
+        return FakespotReliabilityCardViewModel(grade: grade)
     }
 
     var highlightsCardViewModel: FakespotHighlightsCardViewModel? {
@@ -123,12 +145,33 @@ class FakespotViewModel {
         a11yDescriptionIdentifier: AccessibilityIdentifiers.Shopping.GenericErrorInfoCard.description
     )
 
+    let doesNotAnalyzeReviewsViewModel = FakespotMessageCardViewModel(
+        type: .info,
+        title: .Shopping.InfoCardFakespotDoesNotAnalyzeReviewsTitle,
+        description: .Shopping.InfoCardFakespotDoesNotAnalyzeReviewsDescription,
+        a11yCardIdentifier: AccessibilityIdentifiers.Shopping.DoesNotAnalyzeReviewsInfoCard.card,
+        a11yTitleIdentifier: AccessibilityIdentifiers.Shopping.DoesNotAnalyzeReviewsInfoCard.title,
+        a11yDescriptionIdentifier: AccessibilityIdentifiers.Shopping.DoesNotAnalyzeReviewsInfoCard.description
+    )
+
+    let notEnoughReviewsViewModel = FakespotMessageCardViewModel(
+        type: .info,
+        title: .Shopping.InfoCardNotEnoughReviewsTitle,
+        description: .Shopping.InfoCardNotEnoughReviewsDescription,
+        a11yCardIdentifier: AccessibilityIdentifiers.Shopping.NotEnoughReviewsInfoCard.card,
+        a11yTitleIdentifier: AccessibilityIdentifiers.Shopping.NotEnoughReviewsInfoCard.title,
+        a11yDescriptionIdentifier: AccessibilityIdentifiers.Shopping.NotEnoughReviewsInfoCard.description
+    )
+
     let settingsCardViewModel = FakespotSettingsCardViewModel()
     let noAnalysisCardViewModel = FakespotNoAnalysisCardViewModel()
+    let reviewQualityCardViewModel = FakespotReviewQualityCardViewModel()
+    var optInCardViewModel = FakespotOptInCardViewModel()
 
     init(shoppingProduct: ShoppingProduct,
          profile: Profile = AppContainer.shared.resolve()) {
         self.shoppingProduct = shoppingProduct
+        optInCardViewModel.productSitename = shoppingProduct.product?.sitename
         self.prefs = profile.prefs
     }
 
