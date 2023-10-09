@@ -124,7 +124,7 @@ class L10nSuite1SnapshotTests: L10nBaseSnapshotTests {
 
     func testHistoryTableContextMenu() {
         navigator.openURL(loremIpsumURL)
-        mozWaitForElementToNotExist(app.staticTexts["XCUITests-Runner pasted from Fennec"], timeoutValue: 5)
+        mozWaitForElementToNotExist(app.staticTexts["XCUITests-Runner pasted from Fennec"], timeout: 5)
         mozWaitForElementToExist(app.buttons[AccessibilityIdentifiers.Toolbar.settingsMenuButton], timeout: 10)
         navigator.performAction(Action.OpenNewTabFromTabTray)
         navigator.performAction(Action.CloseURLBarOpen)
@@ -213,12 +213,12 @@ class L10nSuite1SnapshotTests: L10nBaseSnapshotTests {
         navigator.goto(BrowserTabMenu)
         snapshot("MenuOnTopSites-01")
 
-        // Set as Default browser screenshot
-        navigator.goto(NewTabScreen)
-        mozWaitForElementToExist(app.buttons[homeTabBannerA11y.ctaButton], timeout: 15)
-        app.buttons[homeTabBannerA11y.ctaButton].tap()
-        mozWaitForElementToExist(app.buttons["HomeTabBanner.goToSettingsButton"], timeout: 15)
-        snapshot("HomeDefaultBrowserLearnMore")
+        // Set as Default browser screenshot (Not working currently due to FXIOS-7325)
+        // navigator.goto(NewTabScreen)
+        // mozWaitForElementToExist(app.buttons[homeTabBannerA11y.ctaButton], timeout: 15)
+        // app.buttons[homeTabBannerA11y.ctaButton].tap()
+        // mozWaitForElementToExist(app.buttons["HomeTabBanner.goToSettingsButton"], timeout: 15)
+        // snapshot("HomeDefaultBrowserLearnMore")
     }
 
     func testSettings() {

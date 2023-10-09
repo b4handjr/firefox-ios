@@ -172,6 +172,29 @@ extension String {
                 value: "Move the toolbar to the top if that’s more your style.",
                 comment: "Contextual hints are little popups that appear for the users informing them of new features. This one indicates a user can navigate to the Settings page to move the search bar to the top.")
         }
+
+        public struct Shopping {
+            public static let NotOptedInBody = MZLocalizedString(
+                key: "", // "ContextualHints.Shopping.NotOptedIn.v120"
+                tableName: "Shopping",
+                value: "Find out if you can trust this product’s reviews — before you buy.",
+                comment: "Contextual hints are little popups that appear for the users informing them of new features. This one indicates that a user can tap on the shopping button to start using the Shopping feature.")
+            public static let NotOptedInAction = MZLocalizedString(
+                key: "", // "ContextualHints.Shopping.NotOptedInAction.v120"
+                tableName: "Shopping",
+                value: "Try review checker",
+                comment: "Contextual hints are little popups that appear for the users informing them of new features. This one is a call to action for the popup describing the Shopping feature. It indicates that a user can go directly to the Shopping feature by tapping the text of the action.")
+            public static let OptedInBody = MZLocalizedString(
+                key: "", // "ContextualHints.Shopping.OptedInBody.v120"
+                tableName: "Shopping",
+                value: "Are these reviews reliable? Check now to see an adjusted rating.",
+                comment: "Contextual hints are little popups that appear for the users informing them of new features. This one appears after the user has opted in and informs him if he wants use the review checker by tapping the Shopping button.")
+            public static let OptedInAction = MZLocalizedString(
+                key: "", // "ContextualHints.Shopping.OptedInAction.v120"
+                tableName: "Shopping",
+                value: "Open review checker",
+                comment: "Contextual hints are little popups that appear for the users informing them of new features. This is a call to action for the popup that appears after the user has opted in for the Shopping feature. It indicates that a user can directly open the review checker by tapping the text of the action.")
+        }
     }
 }
 
@@ -1164,6 +1187,11 @@ extension String {
             tableName: nil,
             value: "Firefox Suggest",
             comment: "When making a new search from the awesome bar, suggestions appear to the user as they write new letters in their search. Different types of suggestions can appear. This string will be used as a header to separate Firefox suggestions from normal suggestions.")
+        public static let SponsoredSuggestionDescription = MZLocalizedString(
+            key: "Search.SponsoredSuggestionDescription.v119",
+            tableName: "Search",
+            value: "Sponsored",
+            comment: "When making a new search from the awesome bar, suggestions appear to the user as they write new letters in their search. Different types of suggestions can appear. This string will be used as a label for sponsored Firefox suggestions.")
         public static let EngineSectionTitle = MZLocalizedString(
             key: "Search.EngineSection.Title.v108",
             tableName: "SearchHeaderTitle",
@@ -3750,7 +3778,7 @@ extension String {
         public static let NoAnalysisCardInProgressBodyLabel = MZLocalizedString(
             key: "", // Shopping.NoAnalysisCard.InProgress.Body.Label.v118
             tableName: "Shopping",
-            value: "Checking review quality",
+            value: "This could take about 60 seconds.",
             comment: "Description of the No Analysis Card when the analysis is in progress displayed in the shopping review quality bottom sheet.")
         public static let ReviewQualityCardLabelTitle = MZLocalizedString(
             key: "", // Shopping.ReviewQualityCard.Label.Title.v119
@@ -3770,17 +3798,17 @@ extension String {
         public static let ReviewQualityCardHeadlineLabel = MZLocalizedString(
             key: "", // Shopping.ReviewQualityCard.Headline.Label.v119
             tableName: "Shopping",
-            value: "We use AI technology from Fakespot by Mozilla to analyze the reliability of product reviews. This analysis will only help you assess review quality, not product quality.",
+            value: "We use AI technology from Fakespot by Mozilla to check the reliability of product reviews. This will only help you assess review quality, not product quality.",
             comment: "Label of the headline from How we determine review quality card displayed in the shopping review quality bottom sheet.")
         public static let ReviewQualityCardSubHeadlineLabel = MZLocalizedString(
             key: "", // Shopping.ReviewQualityCard.SubHeadline.Label.v119
             tableName: "Shopping",
-            value: "We assign each product’s reviews a letter grade from A to F.",
-            comment: "Label of the sub headline from How we determine review quality card displayed in the shopping review quality bottom sheet.")
+            value: "We assign each product’s reviews a *letter grade* from A to F.",
+            comment: "Label of the sub headline from How we determine review quality card displayed in the shopping review quality bottom sheet. The *text inside asterisks* denotes part of the string to bold, please leave the text inside the '*' so that it is bolded correctly.")
         public static let ReviewQualityCardReliableReviewsLabel = MZLocalizedString(
             key: "", // Shopping.ReviewQualityCard.ReliableReviews.Label.v119
             tableName: "Shopping",
-            value: "We believe the reviews to be reliable",
+            value: "Reliable reviews. We believe the reviews are likely from real customers who left honest, unbiased reviews.",
             comment: "Reliable reviews label from How we determine review quality card displayed in the shopping review quality bottom sheet.")
         public static let ReviewQualityCardMixedReviewsLabel = MZLocalizedString(
             key: "", // Shopping.ReviewQualityCard.MixedReviews.Label.v119
@@ -3790,18 +3818,18 @@ extension String {
         public static let ReviewQualityCardUnreliableReviewsLabel = MZLocalizedString(
             key: "", // Shopping.ReviewQualityCard.UnreliableReviews.Label.v119
             tableName: "Shopping",
-            value: "We believe the reviews are unreliable",
+            value: "Unreliable reviews. We believe the reviews are likely fake or from biased reviewers.",
             comment: "Unnreliable reviews label from How we determine review quality card displayed in the shopping review quality bottom sheet.")
         public static let ReviewQualityCardAdjustedRatingLabel = MZLocalizedString(
             key: "", // Shopping.ReviewQualityCard.AdjustedRating.Label.v119
             tableName: "Shopping",
-            value: "The adjusted rating is based only on reviews we believe to be reliable.",
-            comment: "Adujusted rating label from How we determine review quality card displayed in the shopping review quality bottom sheet.")
+            value: "*The adjusted rating* is based only on reviews we believe to be reliable.",
+            comment: "Adujusted rating label from How we determine review quality card displayed in the shopping review quality bottom sheet. The *text inside asterisks* denotes part of the string to bold, please leave the text inside the '*' so that it is bolded correctly.")
         public static let ReviewQualityCardHighlightsLabel = MZLocalizedString(
             key: "", // Shopping.ReviewQualityCard.Highlights.Label.v119
             tableName: "Shopping",
-            value: "Highlights are from Amazon reviews within the last 80 days that we believe to be reliable.",
-            comment: "Highlights label from How we determine review quality card displayed in the shopping review quality bottom sheet.")
+            value: "*Highlights* are from %1@ reviews within the last 80 days that we believe to be reliable.",
+            comment: "Highlights label from How we determine review quality card displayed in the shopping review quality bottom sheet. The parameter substitutes the partner website the user is coming from. The *text inside asterisks* denotes part of the string to bold, please leave the text inside the '*' so that it is bolded correctly.")
         public static let ReviewQualityCardLearnMoreButtonTitle = MZLocalizedString(
             key: "", // Shopping.ReviewQualityCard.LearnMoreButton.Title.v119
             tableName: "Shopping",
@@ -3887,6 +3915,26 @@ extension String {
             tableName: "Shopping",
             value: "When this product has more reviews, we’ll be able to analyze them.",
             comment: "Description for info card when there are not enough reviews for a product")
+        public static let InfoCardNeedsAnalysisTitle = MZLocalizedString(
+            key: "", // Shopping.InfoCard.NeedsAnalysis.Title.v119
+            tableName: "Shopping",
+            value: "New Info To Check",
+            comment: "Title for info card when the product needs analysis")
+        public static let InfoCardNeedsAnalysisPrimaryAction = MZLocalizedString(
+            key: "", // Shopping.InfoCard.NeedsAnalysis.PrimaryAction.v119
+            tableName: "Shopping",
+            value: "Check Now",
+            comment: "Primary action title for info card when the product needs analysis")
+        public static let InfoCardProgressAnalysisTitle = MZLocalizedString(
+            key: "", // Shopping.InfoCard.ProgressAnalysis.Title.v119
+            tableName: "Shopping",
+            value: "Checking review quality",
+            comment: "Title for info card when the product is in analysis mode")
+        public static let InfoCardProgressAnalysisDescription = MZLocalizedString(
+            key: "", // Shopping.InfoCard.ProgressAnalysis.Description.v119
+            tableName: "Shopping",
+            value: "This could take about 60 seconds.",
+            comment: "Description for info card when the product is in analysis mode")
     }
 }
 
