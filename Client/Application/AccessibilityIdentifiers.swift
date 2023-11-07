@@ -120,6 +120,19 @@ public struct AccessibilityIdentifiers {
         static let sheetHeaderBetaLabel = "Shopping.Sheet.HeaderBetaLabel"
         static let sheetCloseButton = "Shopping.Sheet.CloseButton"
 
+        struct ReportingProductFeedbackCard {
+            static let card = "Shopping.ReportingProductFeedbackCard.Card"
+            static let title = "Shopping.ReportingProductFeedbackCard.Title"
+            static let description = "Shopping.ReportingProductFeedbackCard.Description"
+        }
+
+        struct ReportProductInStockCard {
+            static let card = "Shopping.ReportProductInStockCard.Card"
+            static let title = "Shopping.ReportProductInStockCard.Title"
+            static let description = "Shopping.ReportProductInStockCard.Description"
+            static let primaryAction = "Shopping.ReportProductInStockCard.PrimaryAction"
+        }
+
         struct AnalysisProgressInfoCard {
             static let card = "Shopping.AnalysisProgressInfoCard.Card"
             static let title = "Shopping.AnalysisProgressInfoCard.Title"
@@ -252,14 +265,21 @@ public struct AccessibilityIdentifiers {
         static let deleteCloseAllButton = "TabTrayController.deleteButton.closeAll"
         static let deleteCancelButton = "TabTrayController.deleteButton.cancel"
         static let syncedTabs = "Synced Tabs"
-        static let inactiveTabHeader = "InactiveTabs.header"
-        static let inactiveTabDeleteButton = "InactiveTabs.deleteButton"
         static let closeAllTabsButton = "closeAllTabsButtonTabTray"
         static let newTabButton = "newTabButtonTabTray"
         static let doneButton = "doneButtonTabTray"
         static let syncTabsButton = "syncTabsButtonTabTray"
         static let navBarSegmentedControl = "navBarTabTray"
         static let syncDataButton = "syncDataButton"
+
+        struct InactiveTabs {
+            static let headerLabel = "InactiveTabs.headerLabel"
+            static let headerButton = "InactiveTabs.headerButton"
+            static let headerView = "InactiveTabs.header"
+            static let cellLabel = "InactiveTabs.cell.label"
+            static let footerView = "InactiveTabs.footer"
+            static let deleteButton = "InactiveTabs.deleteButton"
+        }
     }
 
     struct LibraryPanels {
@@ -288,6 +308,14 @@ public struct AccessibilityIdentifiers {
 
         struct GroupedList {
             static let tableView = "grouped-items-table-view"
+        }
+
+        struct ReadingListPanel {
+            static let tableView = "Reading list"
+        }
+
+        struct DownloadsPanel {
+            static let tableView = "DownloadsTable"
         }
     }
 
@@ -360,7 +388,7 @@ public struct AccessibilityIdentifiers {
             static let title = "Search"
             static let customEngineViewButton = "customEngineViewButton"
             static let searchNavigationBar = "Search"
-            static let deleteMozillaEngine = "Delete Mozilla Engine"
+            static let deleteMozillaEngine = "Remove Mozilla Engine"
             static let deleteButton = "Delete"
         }
 

@@ -10,20 +10,20 @@ import UIKit
 /// An enum describing the featureID of all features found in Nimbus.
 /// Please add new features alphabetically.
 enum NimbusFeatureFlagID: String, CaseIterable {
+    case addressAutofill
     case bottomSearchBar
     case contextualHintForToolbar
-    case credentialAutofillCoordinatorRefactor
     case creditCardAutofillStatus
+    case fakespotBackInStock
     case fakespotFeature
+    case feltPrivacyUI
     case firefoxSuggestFeature
     case historyHighlights
     case historyGroups
     case inactiveTabs
+    case isToolbarCFREnabled
     case jumpBackIn
-    case libraryCoordinatorRefactor
-    case pocket
-    case feltPrivacyUI
-    case recentlySaved
+    case qrCodeCoordinatorRefactor
     case reduxIntegration
     case reportSiteIssue
     case searchHighlights
@@ -31,7 +31,6 @@ enum NimbusFeatureFlagID: String, CaseIterable {
     case shareSheetChanges
     case shareToolbarChanges
     case tabTrayRefactor
-    case topSites
     case wallpapers
     case wallpaperOnboardingSheet
     case wallpaperVersion
@@ -66,21 +65,17 @@ struct NimbusFlaggableFeature: HasNimbusSearchBar {
             return FlagKeys.InactiveTabs
         case .jumpBackIn:
             return FlagKeys.JumpBackInSection
-        case .pocket:
-            return FlagKeys.ASPocketStories
-        case .recentlySaved:
-            return FlagKeys.RecentlySavedSection
-        case .topSites:
-            return FlagKeys.TopSiteSection
         case .wallpapers:
             return FlagKeys.CustomWallpaper
 
         // Cases where users do not have the option to manipulate a setting.
         case .contextualHintForToolbar,
+                .addressAutofill,
                 .creditCardAutofillStatus,
-                .credentialAutofillCoordinatorRefactor,
+                .fakespotBackInStock,
                 .fakespotFeature,
-                .libraryCoordinatorRefactor,
+                .isToolbarCFREnabled,
+                .qrCodeCoordinatorRefactor,
                 .reduxIntegration,
                 .reportSiteIssue,
                 .feltPrivacyUI,
@@ -109,14 +104,7 @@ struct NimbusFlaggableFeature: HasNimbusSearchBar {
             return true
         }
 
-        let nimbusValue = nimbusLayer.checkNimbusConfigFor(featureID)
-
-        switch featureID {
-        case .pocket:
-            return nimbusValue && PocketProvider.islocaleSupported(Locale.current.identifier)
-        default:
-            return nimbusValue
-        }
+        return nimbusLayer.checkNimbusConfigFor(featureID)
     }
 
     /// Returns whether or not the feature's state was changed by the user. If no

@@ -235,6 +235,49 @@ final class BrowserCoordinatorTests: XCTestCase {
         XCTAssertTrue(mockRouter.presentedViewController is DevicePasscodeRequiredViewController)
     }
 
+    func testShowQRCode_addsQRCodeCoordinator() {
+        let subject = createSubject()
+
+        subject.showQRCode()
+
+        XCTAssertEqual(subject.childCoordinators.count, 1)
+        XCTAssertTrue(subject.childCoordinators.first is QRCodeCoordinator)
+    }
+
+    func testShowQRCode_presentsQRCodeNavigationController() {
+        let subject = createSubject()
+
+        subject.showQRCode()
+
+        XCTAssertEqual(mockRouter.presentCalled, 1)
+        XCTAssertTrue(mockRouter.presentedViewController is QRCodeNavigationController)
+    }
+
+    func testShowTabTray() throws {
+        let subject = createSubject()
+        subject.showTabTray(selectedPanel: .tabs)
+
+        XCTAssertEqual(subject.childCoordinators.count, 1)
+        XCTAssertNotNil(subject.childCoordinators[0] as? TabTrayCoordinator)
+        let presentedVC = try XCTUnwrap(mockRouter.presentedViewController as? DismissableNavigationViewController)
+        XCTAssertEqual(mockRouter.presentCalled, 1)
+        XCTAssertTrue(presentedVC.topViewController is TabTrayViewController)
+    }
+
+    func testDismissTabTray_removesChild() throws {
+        let subject = createSubject()
+        subject.showTabTray(selectedPanel: .tabs)
+        guard let tabTrayCoordinator = subject.childCoordinators[0] as? TabTrayCoordinator else {
+            XCTFail("Tab tray coordinator was expected to be resolved")
+            return
+        }
+
+        subject.didDismissTabTray(from: tabTrayCoordinator)
+
+        XCTAssertEqual(mockRouter.dismissCalled, 1)
+        XCTAssertTrue(subject.childCoordinators.isEmpty)
+    }
+
     // MARK: - ParentCoordinatorDelegate
 
     func testRemoveChildCoordinator_whenDidFinishCalled() {
@@ -259,7 +302,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         subject.browserViewController = mbvc
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: .searchQuery(query: query))
+        let result = testCanHandleAndHandle(subject, route: .searchQuery(query: query))
 
         XCTAssertTrue(result)
         XCTAssertTrue(mbvc.handleQueryCalled)
@@ -273,9 +316,9 @@ final class BrowserCoordinatorTests: XCTestCase {
         subject.browserViewController = mbvc
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: .search(url: URL(string: "https://example.com")!,
-                                                   isPrivate: false,
-                                                   options: nil))
+        let result = testCanHandleAndHandle(subject, route: .search(url: URL(string: "https://example.com")!,
+                                                                    isPrivate: false,
+                                                                    options: nil))
 
         XCTAssertTrue(result)
         XCTAssertTrue(mbvc.switchToTabForURLOrOpenCalled)
@@ -289,9 +332,9 @@ final class BrowserCoordinatorTests: XCTestCase {
         subject.browserViewController = mbvc
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: .search(url: URL(string: "https://example.com")!,
-                                                   isPrivate: false,
-                                                   options: [.switchToNormalMode]))
+        let result = testCanHandleAndHandle(subject, route: .search(url: URL(string: "https://example.com")!,
+                                                                    isPrivate: false,
+                                                                    options: [.switchToNormalMode]))
 
         XCTAssertTrue(result)
         XCTAssertTrue(mbvc.switchToPrivacyModeCalled)
@@ -307,7 +350,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         subject.browserViewController = mbvc
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: .search(url: nil, isPrivate: false))
+        let result = testCanHandleAndHandle(subject, route: .search(url: nil, isPrivate: false))
 
         XCTAssertTrue(result)
         XCTAssertTrue(mbvc.openBlankNewTabCalled)
@@ -321,7 +364,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         subject.browserViewController = mbvc
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: .searchURL(url: URL(string: "https://example.com")!, tabId: "1234"))
+        let result = testCanHandleAndHandle(subject, route: .searchURL(url: URL(string: "https://example.com")!, tabId: "1234"))
 
         XCTAssertTrue(result)
         XCTAssertTrue(mbvc.switchToTabForURLOrOpenCalled)
@@ -335,7 +378,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         subject.browserViewController = mbvc
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: .searchURL(url: nil, tabId: "1234"))
+        let result = testCanHandleAndHandle(subject, route: .searchURL(url: nil, tabId: "1234"))
 
         XCTAssertTrue(result)
         XCTAssertTrue(mbvc.openBlankNewTabCalled)
@@ -351,7 +394,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         subject.browserViewController = mbvc
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: .homepanel(section: .bookmarks))
+        let result = testCanHandleAndHandle(subject, route: .homepanel(section: .bookmarks))
 
         XCTAssertTrue(result)
         XCTAssertTrue(mbvc.showLibraryCalled)
@@ -365,7 +408,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         subject.browserViewController = mbvc
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: .homepanel(section: .history))
+        let result = testCanHandleAndHandle(subject, route: .homepanel(section: .history))
 
         XCTAssertTrue(result)
         XCTAssertTrue(mbvc.showLibraryCalled)
@@ -379,7 +422,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         subject.browserViewController = mbvc
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: .homepanel(section: .readingList))
+        let result = testCanHandleAndHandle(subject, route: .homepanel(section: .readingList))
 
         XCTAssertTrue(result)
         XCTAssertTrue(mbvc.showLibraryCalled)
@@ -393,7 +436,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         subject.browserViewController = mbvc
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: .homepanel(section: .downloads))
+        let result = testCanHandleAndHandle(subject, route: .homepanel(section: .downloads))
 
         XCTAssertTrue(result)
         XCTAssertTrue(mbvc.showLibraryCalled)
@@ -409,7 +452,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         subject.browserHasLoaded()
 
         // When
-        let result = subject.handle(route: .homepanel(section: .topSites))
+        let result = testCanHandleAndHandle(subject, route: .homepanel(section: .topSites))
 
         // Then
         XCTAssertTrue(result)
@@ -426,7 +469,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         subject.browserHasLoaded()
 
         // When
-        let result = subject.handle(route: .search(url: nil, isPrivate: true))
+        let result = testCanHandleAndHandle(subject, route: .search(url: nil, isPrivate: true))
 
         // Then
         XCTAssertTrue(result)
@@ -443,7 +486,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         subject.browserHasLoaded()
 
         // When
-        let result = subject.handle(route: .search(url: nil, isPrivate: false))
+        let result = testCanHandleAndHandle(subject, route: .search(url: nil, isPrivate: false))
 
         // Then
         XCTAssertTrue(result)
@@ -459,7 +502,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         let subject = createSubject()
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: route)
+        let result = testCanHandleAndHandle(subject, route: route)
 
         XCTAssertTrue(result)
         XCTAssertEqual(applicationHelper.openSettingsCalled, 1)
@@ -470,7 +513,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         let subject = createSubject()
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: route)
+        let result = testCanHandleAndHandle(subject, route: route)
 
         XCTAssertTrue(result)
         XCTAssertNotNil(mockRouter.presentedViewController as? DefaultBrowserOnboardingViewController)
@@ -487,7 +530,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         let subject = createSubject()
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: route)
+        let result = testCanHandleAndHandle(subject, route: route)
 
         XCTAssertTrue(result)
         XCTAssertEqual(glean.handleDeeplinkUrlCalled, 1)
@@ -501,7 +544,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         let subject = createSubject()
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: route)
+        let result = testCanHandleAndHandle(subject, route: route)
 
         XCTAssertTrue(result)
         let presentedVC = try XCTUnwrap(mockRouter.presentedViewController as? ThemedNavigationController)
@@ -513,7 +556,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         let subject = createSubject()
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: .settings(section: .general))
+        let result = testCanHandleAndHandle(subject, route: .settings(section: .general))
 
         XCTAssertTrue(result)
         XCTAssertEqual(subject.childCoordinators.count, 1)
@@ -524,8 +567,8 @@ final class BrowserCoordinatorTests: XCTestCase {
         let subject = createSubject()
         subject.browserHasLoaded()
 
-        let result1 = subject.handle(route: .settings(section: .general))
-        let result2 = subject.handle(route: .settings(section: .general))
+        let result1 = testCanHandleAndHandle(subject, route: .settings(section: .general))
+        let result2 = testCanHandleAndHandle(subject, route: .settings(section: .general))
 
         XCTAssertTrue(result1)
         XCTAssertEqual(subject.childCoordinators.count, 1)
@@ -537,7 +580,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         let subject = createSubject()
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: .settings(section: .general))
+        let result = testCanHandleAndHandle(subject, route: .settings(section: .general))
         mockRouter.savedCompletion?()
 
         XCTAssertTrue(result)
@@ -561,7 +604,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         let subject = createSubject()
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: .settings(section: .general))
+        let result = testCanHandleAndHandle(subject, route: .settings(section: .general))
         let settingsCoordinator = subject.childCoordinators[0] as! SettingsCoordinator
         subject.didFinishSettings(from: settingsCoordinator)
 
@@ -604,7 +647,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         // When
         let params = FxALaunchParams(entrypoint: .fxaDeepLinkNavigation,
                                      query: ["signin": "coolcodes", "user": "foo", "email": "bar"])
-        let result = subject.handle(route: .fxaSignIn(params: params))
+        let result = testCanHandleAndHandle(subject, route: .fxaSignIn(params: params))
 
         // Then
         XCTAssertTrue(result)
@@ -624,7 +667,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         subject.browserHasLoaded()
 
         // When
-        let result = subject.handle(route: .action(action: .showQRCode))
+        let result = testCanHandleAndHandle(subject, route: .action(action: .showQRCode))
 
         // Then
         XCTAssertTrue(result)
@@ -639,7 +682,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         subject.browserHasLoaded()
 
         // When
-        let result = subject.handle(route: .action(action: .closePrivateTabs))
+        let result = testCanHandleAndHandle(subject, route: .action(action: .closePrivateTabs))
 
         // Then
         XCTAssertTrue(result)
@@ -650,7 +693,7 @@ final class BrowserCoordinatorTests: XCTestCase {
         let subject = createSubject()
         subject.browserHasLoaded()
 
-        let result = subject.handle(route: .action(action: .showIntroOnboarding))
+        let result = testCanHandleAndHandle(subject, route: .action(action: .showIntroOnboarding))
 
         XCTAssertTrue(result)
         XCTAssertEqual(subject.childCoordinators.count, 1)
@@ -768,6 +811,24 @@ final class BrowserCoordinatorTests: XCTestCase {
         XCTAssertTrue(mbvc.isPrivate)
     }
 
+    func testOpenRecentlyClosedTabInSameTab_callsReletedMethodInBrowserViewController() {
+        let subject = createSubject()
+        let mbvc = MockBrowserViewController(profile: profile, tabManager: tabManager)
+        subject.browserViewController = mbvc
+
+        subject.openRecentlyClosedSiteInSameTab(URL(string: "https://www.google.com")!)
+
+        XCTAssertEqual(mbvc.didOpenRecentlyClosedSiteInSameTab, 1)
+    }
+
+    func testOpenRecentlyClosedSiteInNewTab_addsOneTabToTabManager() {
+        let subject = createSubject()
+
+        subject.openRecentlyClosedSiteInNewTab(URL(string: "https://www.google.com")!, isPrivate: false)
+
+        XCTAssertEqual(tabManager.lastSelectedTabs.count, 1)
+    }
+
     // MARK: - Fakespot
     func testFakespotCoordinatorDelegate_didDidDismiss_removesChild() {
         let subject = createSubject()
@@ -804,5 +865,11 @@ final class BrowserCoordinatorTests: XCTestCase {
 
         trackForMemoryLeaks(subject, file: file, line: line)
         return subject
+    }
+
+    private func testCanHandleAndHandle(_ subject: Coordinator, route: Route) -> Bool {
+        let result = subject.canHandle(route: route)
+        subject.handle(route: route)
+        return result
     }
 }

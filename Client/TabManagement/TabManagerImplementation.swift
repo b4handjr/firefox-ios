@@ -30,7 +30,7 @@ class TabManagerImplementation: LegacyTabManager, Notifiable {
             self.imageStore = imageStore
             self.tabMigration = tabMigration
             self.notificationCenter = notificationCenter
-            super.init(profile: profile, imageStore: imageStore)
+            super.init(profile: profile)
 
             setupNotifications(forObserver: self,
                                observing: [UIApplication.willResignActiveNotification])
@@ -39,12 +39,6 @@ class TabManagerImplementation: LegacyTabManager, Notifiable {
     // MARK: - Restore tabs
 
     override func restoreTabs(_ forced: Bool = false) {
-        guard shouldUseNewTabStore()
-        else {
-            super.restoreTabs(forced)
-            return
-        }
-
         guard !isRestoringTabs,
               forced || tabs.isEmpty
         else {
@@ -69,6 +63,7 @@ class TabManagerImplementation: LegacyTabManager, Notifiable {
         }
 
         isRestoringTabs = true
+        AppEventQueue.started(.tabRestoration)
 
         guard tabMigration.shouldRunMigration else {
             logger.log("Not running the migration",
@@ -86,7 +81,7 @@ class TabManagerImplementation: LegacyTabManager, Notifiable {
 
     private func migrateAndRestore() {
         Task {
-            await buildTabRestore(window: await tabMigration.runMigration(savedTabs: store.tabs))
+            await buildTabRestore(window: await tabMigration.runMigration())
             logger.log("Tabs restore ended after migration", level: .debug, category: .tabs)
             logger.log("Normal tabs count; \(normalTabs.count), Inactive tabs count; \(inactiveTabs.count), Private tabs count; \(privateTabs.count)", level: .debug, category: .tabs)
         }
@@ -98,15 +93,6 @@ class TabManagerImplementation: LegacyTabManager, Notifiable {
             await buildTabRestore(window: await self.tabDataStore.fetchWindowData())
             logger.log("Tabs restore ended after fetching window data", level: .debug, category: .tabs)
             logger.log("Normal tabs count; \(normalTabs.count), Inactive tabs count; \(inactiveTabs.count), Private tabs count; \(privateTabs.count)", level: .debug, category: .tabs)
-
-            // Safety check incase something went wrong during launch where a migration should have occured
-            if tabs.count <= 1 && store.tabs.count > 1 {
-                logger.log("Rerunning migration due to inconsistent tab counts, old tab store count: \(store.tabs.count)",
-                           level: .fatal,
-                           category: .tabs)
-                isRestoringTabs = true
-                migrateAndRestore()
-            }
         }
     }
 
@@ -114,6 +100,7 @@ class TabManagerImplementation: LegacyTabManager, Notifiable {
         defer {
             isRestoringTabs = false
             tabRestoreHasFinished = true
+            AppEventQueue.completed(.tabRestoration)
         }
 
         let nonPrivateTabs = window?.tabData.filter { !$0.isPrivate }
@@ -132,9 +119,10 @@ class TabManagerImplementation: LegacyTabManager, Notifiable {
             return
         }
         await generateTabs(from: windowData)
+        cleanUpUnusedScreenshots()
 
-        for delegate in delegates {
-            ensureMainThread {
+        await MainActor.run {
+            for delegate in delegates {
                 delegate.get()?.tabManagerDidRestoreTabs(self)
             }
         }
@@ -223,12 +211,7 @@ class TabManagerImplementation: LegacyTabManager, Notifiable {
         // Only preserve tabs after the restore has finished
         guard tabRestoreHasFinished else { return }
 
-        // For now we want to continue writing to both data stores so that we can revert to the old system if needed
-        super.preserveTabs()
-        guard shouldUseNewTabStore() else { return }
-
         logger.log("Preserve tabs started", level: .debug, category: .tabs)
-
         preserveTabs(forced: false)
     }
 
@@ -241,6 +224,10 @@ class TabManagerImplementation: LegacyTabManager, Notifiable {
                                         activeTabId: activeTabID,
                                         tabData: self.generateTabDataForSaving())
             await tabDataStore.saveWindowData(window: windowData, forced: forced)
+
+            // Save simple tabs, used by widget extension
+            let simpleTabs = SimpleTab.convertToSimpleTabs(windowData.tabData)
+            SimpleTab.saveSimpleTab(tabs: simpleTabs)
 
             logger.log("Preserve tabs ended", level: .debug, category: .tabs)
         }
@@ -286,12 +273,6 @@ class TabManagerImplementation: LegacyTabManager, Notifiable {
 
     /// storeChanges is called when a web view has finished loading a page
     override func storeChanges() {
-        guard shouldUseNewTabStore()
-        else {
-            super.storeChanges()
-            return
-        }
-
         saveTabs(toProfile: profile, normalTabs)
         preserveTabs()
         saveCurrentTabSessionData()
@@ -318,6 +299,7 @@ class TabManagerImplementation: LegacyTabManager, Notifiable {
     }
 
     // MARK: - Select Tab
+
     override func selectTab(_ tab: Tab?, previous: Tab? = nil) {
         guard shouldUseNewTabStore(),
               let tab = tab,
@@ -363,39 +345,40 @@ class TabManagerImplementation: LegacyTabManager, Notifiable {
         return false
     }
 
-    // MARK: - Save screenshot
-    override func tabDidSetScreenshot(_ tab: Tab, hasHomeScreenshot: Bool) {
-        guard shouldUseNewTabStore()
-        else {
-            super.tabDidSetScreenshot(tab, hasHomeScreenshot: hasHomeScreenshot)
+    // MARK: - Screenshots
+
+    func tabDidSetScreenshot(_ tab: Tab, hasHomeScreenshot: Bool) {
+        guard tab.screenshot != nil else {
+            // Remove screenshot from image store so we can use favicon
+            // when a screenshot isn't available for the associated tab url
+            removeScreenshot(tab: tab)
             return
         }
 
         storeScreenshot(tab: tab)
     }
 
-    override func storeScreenshot(tab: Tab) {
-        guard shouldUseNewTabStore(),
-              let screenshot = tab.screenshot
-        else {
-            super.storeScreenshot(tab: tab)
-            return
-        }
+    func storeScreenshot(tab: Tab) {
+        guard let screenshot = tab.screenshot else { return }
 
         Task {
             try? await imageStore?.saveImageForKey(tab.tabUUID, image: screenshot)
         }
     }
 
-    override func removeScreenshot(tab: Tab) {
-        guard shouldUseNewTabStore()
-        else {
-            super.removeScreenshot(tab: tab)
-            return
-        }
-
+    func removeScreenshot(tab: Tab) {
         Task {
             await imageStore?.deleteImageForKey(tab.tabUUID)
+        }
+    }
+
+    private func cleanUpUnusedScreenshots() {
+        // Clean up any screenshots that are no longer associated with a tab.
+        var savedUUIDs = Set<String>()
+        tabs.forEach { savedUUIDs.insert($0.screenshotUUID?.uuidString ?? "") }
+        let savedUUIDsCopy = savedUUIDs
+        Task {
+            try? await imageStore?.clearAllScreenshotsExcluding(savedUUIDsCopy)
         }
     }
 

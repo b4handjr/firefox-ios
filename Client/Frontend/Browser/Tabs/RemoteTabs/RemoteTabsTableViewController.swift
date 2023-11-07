@@ -87,15 +87,6 @@ class RemoteTabsTableViewController: UITableViewController,
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         (navigationController as? ThemedNavigationController)?.applyTheme()
-
-        // Add a refresh control if the user is logged in and the control
-        // was not added before. If the user is not logged in, remove any
-        // existing control.
-        if state.allowsRefresh && refreshControl == nil {
-            addRefreshControl()
-        }
-
-        refreshTabs(state: state, updateCache: true)
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -117,6 +108,19 @@ class RemoteTabsTableViewController: UITableViewController,
 
         if isShowingEmptyView {
             configureEmptyView()
+        }
+
+        if state.refreshState != .refreshing {
+            endRefreshing()
+        }
+
+        // Add a refresh control if the user is logged in and the control
+        // was not added before. If the user is not logged in, remove any
+        // existing control.
+        if state.allowsRefresh && refreshControl == nil {
+            addRefreshControl()
+        } else if !state.allowsRefresh {
+            removeRefreshControl()
         }
 
         tableView.reloadData()
@@ -151,11 +155,18 @@ class RemoteTabsTableViewController: UITableViewController,
 
     @objc
     func onRefreshPulled() {
+        guard state.allowsRefresh else {
+            endRefreshing()
+            return
+        }
+        guard state.refreshState == .idle else {
+            return
+        }
         refreshControl?.beginRefreshing()
-        refreshTabs(state: state, updateCache: true)
+        remoteTabsPanel?.tableViewControllerDidPullToRefresh()
     }
 
-    func endRefreshing() {
+    private func endRefreshing() {
         // Always end refreshing, even if we failed!
         refreshControl?.endRefreshing()
 
@@ -163,30 +174,6 @@ class RemoteTabsTableViewController: UITableViewController,
         if !state.allowsRefresh {
             removeRefreshControl()
         }
-    }
-
-    func updateDelegateClientAndTabData(_ clientAndTabs: [ClientAndTabs]) {
-        // TODO: Forthcoming as part of ongoing tab tray Redux refactors. [FXIOS-6942] & [FXIOS-7509]
-
-        reloadUI()
-    }
-
-    func refreshTabs(state: RemoteTabsPanelState, updateCache: Bool = false, completion: (() -> Void)? = nil) {
-        ensureMainThread { [self] in
-            self.state = state
-            performRefresh(updateCache: updateCache, completion: completion)
-        }
-    }
-
-    private func performRefresh(updateCache: Bool, completion: (() -> Void)?) {
-        // Short circuit if the user is not logged in
-        guard state.allowsRefresh else {
-            endRefreshing()
-            return
-        }
-
-        // TODO: Send Redux action to get clients & tabs, update once state received. Forthcoming.  [FXIOS-6942] & [FXIOS-7509]
-        // store.dispatch(RemoteTabsPanelAction.refreshCachedTabs)
     }
 
     @objc

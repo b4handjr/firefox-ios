@@ -13,6 +13,8 @@ class MockLogger: Logger {
     func setup(sendUsageData: Bool) {}
     func configure(crashManager: Common.CrashManager) {}
     func copyLogsToDocuments() {}
+    func logCustomError(error: Error) {}
+    func deleteCachedLogFiles() {}
 
     func log(_ message: String,
              level: LoggerLevel,

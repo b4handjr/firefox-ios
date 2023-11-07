@@ -119,8 +119,10 @@ protocol Profile: AnyObject {
     func removeAccount()
 
     func getClientsAndTabs() -> Deferred<Maybe<[ClientAndTabs]>>
-    func getCachedClientsAndTabs(completion: @escaping ([ClientAndTabs]) -> Void)
     func getCachedClientsAndTabs() -> Deferred<Maybe<[ClientAndTabs]>>
+
+    func getClientsAndTabs(completion: @escaping ([ClientAndTabs]?) -> Void)
+    func getCachedClientsAndTabs(completion: @escaping ([ClientAndTabs]?) -> Void)
 
     func cleanupHistoryIfNeeded()
 
@@ -280,40 +282,8 @@ open class BrowserProfile: Profile {
             prefs.clearAll()
         }
 
-        // Set up logging from Rust.
-        if !RustLog.shared.tryEnable({ (level, tag, message) -> Bool in
-            let logString = "[RUST][\(tag ?? "no-tag")] \(message)"
-
-            switch level {
-            case .trace:
-                break
-            case .debug:
-                logger.log(logString,
-                           level: .debug,
-                           category: .sync)
-            case .info:
-                logger.log(logString,
-                           level: .info,
-                           category: .sync)
-            case .warn:
-                logger.log(logString,
-                           level: .warning,
-                           category: .sync)
-            case .error:
-                logger.log(logString,
-                           level: .warning,
-                           category: .sync)
-            }
-
-            return true
-        }) {
-            logger.log("Unable to enable logging from Rust",
-                       level: .warning,
-                       category: .setup)
-        }
-
-        // By default, filter logging from Rust below `.info` level.
-        try? RustLog.shared.setLevelFilter(filter: .info)
+        setLogger(logger: ForwardOnLog(logger: self.logger))
+        setMaxLevel(level: Level.info)
 
         // Initiating the sync manager has to happen prior to the databases being opened,
         // because opening them can trigger events to which the SyncManager listens.
@@ -348,6 +318,7 @@ open class BrowserProfile: Profile {
         if let downloadsPath = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false).appendingPathComponent("Downloads").path {
             try? FileManager.default.createDirectory(atPath: downloadsPath, withIntermediateDirectories: true, attributes: nil)
         }
+        AppEventQueue.signal(event: .profileInitialized)
     }
 
     func reopen() {
@@ -383,17 +354,17 @@ open class BrowserProfile: Profile {
 
     @objc
     func onLocationChange(notification: NSNotification) {
-        if let v = notification.userInfo!["visitType"] as? Int,
-           let visitType = VisitType(rawValue: v),
-           let url = notification.userInfo!["url"] as? URL, !isIgnoredURL(url),
-           let title = notification.userInfo!["title"] as? NSString {
+        let v = notification.userInfo!["visitType"] as? Int
+        let visitType = VisitType.fromRawValue(rawValue: v)
+        if let url = notification.userInfo!["url"] as? URL, !isIgnoredURL(url),
+        let title = notification.userInfo!["title"] as? NSString {
             // Only record local vists if the change notification originated from a non-private tab
             if !(notification.userInfo!["isPrivate"] as? Bool ?? false) {
                 let result = self.places.applyObservation(
                     visitObservation: VisitObservation(
                         url: url.description,
                         title: title as String,
-                        visitType: VisitTransition.fromVisitType(visitType: visitType)
+                        visitType: visitType
                     )
                 )
                 result.upon { result in
@@ -538,10 +509,17 @@ open class BrowserProfile: Profile {
         return self.syncManager.syncTabs() >>> { self.retrieveTabData() }
     }
 
-    public func getCachedClientsAndTabs(completion: @escaping ([ClientAndTabs]) -> Void) {
+    public func getClientsAndTabs(completion: @escaping ([ClientAndTabs]?) -> Void) {
+        let deferredResponse = self.syncManager.syncTabs() >>> { self.retrieveTabData() }
+        deferredResponse.upon { result in
+            completion(result.successValue)
+        }
+    }
+
+    public func getCachedClientsAndTabs(completion: @escaping ([ClientAndTabs]?) -> Void) {
         let defferedResponse = self.retrieveTabData()
         defferedResponse.upon { result in
-            completion(result.successValue ?? [])
+            completion(result.successValue)
         }
     }
 

@@ -13,13 +13,16 @@ class FakespotSettingsCardViewModel {
     private let tabManager: TabManager
 
     let cardA11yId: String = a11yIds.card
-    let showProductsLabelTitle: String = .Shopping.SettingsCardRecommendedProductsLabel
+    let showProductsLabelTitle = String.localizedStringWithFormat(.Shopping.SettingsCardRecommendedProductsLabel,
+                                                                  AppName.shortName.rawValue)
     let showProductsLabelTitleA11yId: String = a11yIds.productsLabel
     let turnOffButtonTitle: String = .Shopping.SettingsCardTurnOffButton
     let turnOffButtonTitleA11yId: String = a11yIds.turnOffButton
     let recommendedProductsSwitchA11yId: String = a11yIds.recommendedProductsSwitch
     let footerTitle: String = ""
-    let footerActionTitle: String = .Shopping.SettingsCardFooterAction
+    let footerActionTitle = String.localizedStringWithFormat(.Shopping.SettingsCardFooterAction,
+                                                             FakespotName.shortName.rawValue,
+                                                             MozillaName.shortName.rawValue)
     let footerA11yTitleIdentifier: String = a11yIds.footerTitle
     let footerA11yActionIdentifier: String = a11yIds.footerAction
     let footerActionUrl = FakespotUtils.fakespotUrl
@@ -27,7 +30,13 @@ class FakespotSettingsCardViewModel {
 
     var isReviewQualityCheckOn: Bool {
         get { return prefs.boolForKey(PrefsKeys.Shopping2023OptIn) ?? false }
-        set { prefs.setBool(newValue, forKey: PrefsKeys.Shopping2023OptIn) }
+        set {
+            prefs.setBool(newValue, forKey: PrefsKeys.Shopping2023OptIn)
+
+            if !newValue {
+                prefs.setBool(true, forKey: PrefsKeys.Shopping2023ExplicitOptOut)
+            }
+        }
     }
 
     var areAdsEnabled: Bool {
@@ -55,27 +64,16 @@ class FakespotSettingsCardViewModel {
         tabManager.addTabsForURLs([footerActionUrl], zombie: false, shouldSelectTab: true)
         dismissViewController?(.interactionWithALink)
     }
-
-    func recordTelemetryForShoppingOptedOut() {
-        TelemetryWrapper.recordEvent(
-            category: .action,
-            method: .tap,
-            object: .shoppingSettingsCardTurnOffButton
-        )
-    }
 }
 
 final class FakespotSettingsCardView: UIView, ThemeApplicable {
     private struct UX {
-        static let headerLabelFontSize: CGFloat = 17
-        static let buttonLabelFontSize: CGFloat = 16
-        static let buttonCornerRadius: CGFloat = 14
+        static let headerLabelFontSize: CGFloat = 15
         static let buttonLeadingTrailingPadding: CGFloat = 8
         static let buttonTopPadding: CGFloat = 16
         static let contentStackViewSpacing: CGFloat = 16
         static let labelSwitchStackViewSpacing: CGFloat = 12
         static let contentInsets = UIEdgeInsets(top: 8, left: 0, bottom: 8, right: 0)
-        static let buttonInsets = UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
         static let cardBottomSpace: CGFloat = 8
         static let footerHorizontalSpace: CGFloat = 8
     }
@@ -102,7 +100,7 @@ final class FakespotSettingsCardView: UIView, ThemeApplicable {
         label.numberOfLines = 0
         label.adjustsFontForContentSizeCategory = true
         label.clipsToBounds = true
-        label.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .body,
+        label.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .subheadline,
                                                             size: UX.headerLabelFontSize)
     }
 
@@ -112,15 +110,8 @@ final class FakespotSettingsCardView: UIView, ThemeApplicable {
         uiSwitch.addTarget(self, action: #selector(self.didToggleSwitch), for: .valueChanged)
     }
 
-    private lazy var turnOffButton: ResizableButton = .build { button in
-        button.layer.cornerRadius = UX.buttonCornerRadius
-        button.contentEdgeInsets = UX.buttonInsets
-        button.titleLabel?.textAlignment = .center
-        button.clipsToBounds = true
+    private lazy var turnOffButton: SecondaryRoundedButton = .build { button in
         button.addTarget(self, action: #selector(self.didTapTurnOffButton), for: .touchUpInside)
-        button.titleLabel?.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .headline,
-                                                                         size: UX.buttonLabelFontSize,
-                                                                         weight: .semibold)
     }
 
     private lazy var footerView: ActionFooterView = .build()
@@ -175,8 +166,11 @@ final class FakespotSettingsCardView: UIView, ThemeApplicable {
         showProductsLabel.text = viewModel.showProductsLabelTitle
         showProductsLabel.accessibilityIdentifier = viewModel.showProductsLabelTitleA11yId
 
-        turnOffButton.setTitle(viewModel.turnOffButtonTitle, for: .normal)
-        turnOffButton.accessibilityIdentifier = viewModel.turnOffButtonTitleA11yId
+        let turnOffButtonViewModel = SecondaryRoundedButtonViewModel(
+            title: viewModel.turnOffButtonTitle,
+            a11yIdentifier: viewModel.turnOffButtonTitleA11yId
+        )
+        turnOffButton.configure(viewModel: turnOffButtonViewModel)
 
         recommendedProductsSwitch.accessibilityIdentifier = viewModel.recommendedProductsSwitchA11yId
 
@@ -186,8 +180,8 @@ final class FakespotSettingsCardView: UIView, ThemeApplicable {
             title: .Shopping.SettingsCardLabelTitle,
             titleA11yId: AccessibilityIdentifiers.Shopping.SettingsCard.title,
             expandButtonA11yId: AccessibilityIdentifiers.Shopping.SettingsCard.expandButton,
-            expandButtonA11yLabelExpanded: .Shopping.SettingsCardExpandedAccessibilityLabel,
-            expandButtonA11yLabelCollapsed: .Shopping.SettingsCardCollapsedAccessibilityLabel) { state in
+            expandButtonA11yLabelExpand: .Shopping.SettingsCardExpandAccessibilityLabel,
+            expandButtonA11yLabelCollapse: .Shopping.SettingsCardCollapseAccessibilityLabel) { state in
                 if state == .expanded {
                     TelemetryWrapper.recordEvent(category: .action,
                                                  method: .view,
@@ -206,8 +200,11 @@ final class FakespotSettingsCardView: UIView, ThemeApplicable {
     @objc
     private func didTapTurnOffButton() {
         viewModel?.isReviewQualityCheckOn = false
+
+        // Send settings telemetry for Fakespot
+        FakespotUtils().addSettingTelemetry()
+
         viewModel?.dismissViewController?(.optingOutOfTheFeature)
-        viewModel?.recordTelemetryForShoppingOptedOut()
     }
 
     // MARK: - Theming System
@@ -219,8 +216,7 @@ final class FakespotSettingsCardView: UIView, ThemeApplicable {
         recommendedProductsSwitch.onTintColor = colors.actionPrimary
         recommendedProductsSwitch.tintColor = colors.formKnob
 
-        turnOffButton.backgroundColor = colors.actionSecondary
-        turnOffButton.setTitleColor(colors.textOnLight, for: .normal)
+        turnOffButton.applyTheme(theme: theme)
 
         footerView.applyTheme(theme: theme)
     }

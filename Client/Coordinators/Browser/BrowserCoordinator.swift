@@ -17,7 +17,8 @@ class BrowserCoordinator: BaseCoordinator,
                           EnhancedTrackingProtectionCoordinatorDelegate,
                           FakespotCoordinatorDelegate,
                           ParentCoordinatorDelegate,
-                          TabManagerDelegate {
+                          TabManagerDelegate,
+                          TabTrayCoordinatorDelegate {
     var browserViewController: BrowserViewController
     var webviewController: WebviewViewController?
     var homepageViewController: HomepageViewController?
@@ -159,7 +160,7 @@ class BrowserCoordinator: BaseCoordinator,
 
     // MARK: - Route handling
 
-    override func handle(route: Route) -> Bool {
+    override func canHandle(route: Route) -> Bool {
         guard browserIsReady, !tabManager.isRestoringTabs else {
             let readyMessage = "browser is ready? \(browserIsReady)"
             let restoringMessage = "is restoring tabs? \(tabManager.isRestoringTabs)"
@@ -169,46 +170,51 @@ class BrowserCoordinator: BaseCoordinator,
             return false
         }
 
+        switch route {
+        case .searchQuery, .search, .searchURL, .glean, .homepanel, .action, .fxaSignIn, .defaultBrowser:
+            return true
+        case let .settings(section):
+            return canHandleSettings(with: section)
+        }
+    }
+
+    override func handle(route: Route) {
+        guard browserIsReady, !tabManager.isRestoringTabs else {
+            return
+        }
+
         logger.log("Handling a route", level: .info, category: .coordinator)
         switch route {
         case let .searchQuery(query):
             handle(query: query)
-            return true
 
         case let .search(url, isPrivate, options):
             handle(url: url, isPrivate: isPrivate, options: options)
-            return true
 
         case let .searchURL(url, tabId):
             handle(searchURL: url, tabId: tabId)
-            return true
 
         case let .glean(url):
             glean.handleDeeplinkUrl(url: url)
-            return true
 
         case let .homepanel(section):
             handle(homepanelSection: section)
-            return true
 
         case let .settings(section):
-            return handleSettings(with: section)
+            handleSettings(with: section)
 
         case let .action(routeAction):
             switch routeAction {
             case .closePrivateTabs:
                 handleClosePrivateTabs()
-                return true
             case .showQRCode:
                 handleQRCode()
-                return true
             case .showIntroOnboarding:
-                return showIntroOnboarding()
+                showIntroOnboarding()
             }
 
         case let .fxaSignIn(params):
             handle(fxaParams: params)
-            return true
 
         case let .defaultBrowser(section):
             switch section {
@@ -217,15 +223,13 @@ class BrowserCoordinator: BaseCoordinator,
             case .tutorial:
                 startLaunch(with: .defaultBrowser)
             }
-            return true
         }
     }
 
-    private func showIntroOnboarding() -> Bool {
+    private func showIntroOnboarding() {
         let introManager = IntroScreenManager(prefs: profile.prefs)
         let launchType = LaunchType.intro(manager: introManager)
         startLaunch(with: launchType)
-        return true
     }
 
     private func handleQRCode() {
@@ -271,11 +275,17 @@ class BrowserCoordinator: BaseCoordinator,
         browserViewController.presentSignInViewController(fxaParams)
     }
 
-    private func handleSettings(with section: Route.SettingsSection) -> Bool {
+    private func canHandleSettings(with section: Route.SettingsSection) -> Bool {
         guard !childCoordinators.contains(where: { $0 is SettingsCoordinator}) else {
             return false // route is handled with existing child coordinator
         }
+        return true
+    }
 
+    private func handleSettings(with section: Route.SettingsSection) {
+        guard !childCoordinators.contains(where: { $0 is SettingsCoordinator}) else {
+            return // route is handled with existing child coordinator
+        }
         let navigationController = ThemedNavigationController()
         let isPad = UIDevice.current.userInterfaceIdiom == .pad
         let modalPresentationStyle: UIModalPresentationStyle = isPad ? .fullScreen: .formSheet
@@ -290,7 +300,6 @@ class BrowserCoordinator: BaseCoordinator,
         router.present(navigationController) { [weak self] in
             self?.didFinishSettings(from: settingsCoordinator)
         }
-        return true
     }
 
     private func showLibrary(with homepanelSection: Route.HomepanelSection) {
@@ -320,6 +329,7 @@ class BrowserCoordinator: BaseCoordinator,
     }
 
     // MARK: - SettingsCoordinatorDelegate
+
     func openURLinNewTab(_ url: URL) {
         browserViewController.openURLInNewTab(url)
     }
@@ -330,6 +340,24 @@ class BrowserCoordinator: BaseCoordinator,
     }
 
     // MARK: - LibraryCoordinatorDelegate
+
+    func openRecentlyClosedSiteInSameTab(_ url: URL) {
+        browserViewController.openRecentlyClosedSiteInSameTab(url)
+    }
+
+    func openRecentlyClosedSiteInNewTab(_ url: URL, isPrivate: Bool) {
+        browserViewController.openRecentlyClosedSiteInNewTab(url, isPrivate: isPrivate)
+    }
+
+    func libraryPanelDidRequestToOpenInNewTab(_ url: URL, isPrivate: Bool) {
+        browserViewController.libraryPanelDidRequestToOpenInNewTab(url, isPrivate: isPrivate)
+        router.dismiss()
+    }
+
+    func libraryPanel(didSelectURL url: URL, visitType: Storage.VisitType) {
+        browserViewController.libraryPanel(didSelectURL: url, visitType: visitType)
+        router.dismiss()
+    }
 
     func didFinishLibrary(from coordinator: LibraryCoordinator) {
         router.dismiss(animated: true, completion: nil)
@@ -344,14 +372,14 @@ class BrowserCoordinator: BaseCoordinator,
     }
 
     func settingsOpenPage(settings: Route.SettingsSection) {
-        _ = handleSettings(with: settings)
+        handleSettings(with: settings)
     }
 
     // MARK: - BrowserNavigationHandler
 
     func show(settings: Route.SettingsSection) {
         presentWithModalDismissIfNeeded {
-            _ = self.handleSettings(with: settings)
+            self.handleSettings(with: settings)
         }
     }
 
@@ -419,16 +447,35 @@ class BrowserCoordinator: BaseCoordinator,
         return bottomSheetCoordinator
     }
 
-    // MARK: - LibraryPanelDelegate
-
-    func libraryPanelDidRequestToOpenInNewTab(_ url: URL, isPrivate: Bool) {
-        browserViewController.libraryPanelDidRequestToOpenInNewTab(url, isPrivate: isPrivate)
-        router.dismiss()
+    func showQRCode() {
+        var coordinator: QRCodeCoordinator
+        if let qrCodeCoordinator = childCoordinators.first(where: { $0 is QRCodeCoordinator }) as? QRCodeCoordinator {
+            coordinator = qrCodeCoordinator
+        } else {
+            coordinator = QRCodeCoordinator(parentCoordinator: self, router: router)
+            add(child: coordinator)
+        }
+        coordinator.showQRCode(delegate: browserViewController)
     }
 
-    func libraryPanel(didSelectURL url: URL, visitType: Storage.VisitType) {
-        browserViewController.libraryPanel(didSelectURL: url, visitType: visitType)
-        router.dismiss()
+    func showTabTray(selectedPanel: TabTrayPanelType) {
+        guard !childCoordinators.contains(where: { $0 is TabTrayCoordinator}) else {
+            return // flow is already handled
+        }
+
+        let navigationController = DismissableNavigationViewController()
+        let isPad = UIDevice.current.userInterfaceIdiom == .pad
+        let modalPresentationStyle: UIModalPresentationStyle = isPad ? .fullScreen: .formSheet
+        navigationController.modalPresentationStyle = modalPresentationStyle
+
+        let tabTrayCoordinator = TabTrayCoordinator(
+            router: DefaultRouter(navigationController: navigationController)
+        )
+        tabTrayCoordinator.parentCoordinator = self
+        add(child: tabTrayCoordinator)
+        tabTrayCoordinator.start(with: selectedPanel)
+
+        router.present(navigationController)
     }
 
     // MARK: - ParentCoordinatorDelegate
@@ -446,23 +493,9 @@ class BrowserCoordinator: BaseCoordinator,
         }
     }
 
-    func showTabTray() {
-        guard !childCoordinators.contains(where: { $0 is TabTrayCoordinator}) else {
-            return // flow is already handled
-        }
-
-        let navigationController = DismissableNavigationViewController()
-        let isPad = UIDevice.current.userInterfaceIdiom == .pad
-        let modalPresentationStyle: UIModalPresentationStyle = isPad ? .fullScreen: .formSheet
-        navigationController.modalPresentationStyle = modalPresentationStyle
-
-        let tabTrayCoordinator = TabTrayCoordinator(
-            router: DefaultRouter(navigationController: navigationController)
-        )
-        tabTrayCoordinator.parentCoordinator = self
-        add(child: tabTrayCoordinator)
-        tabTrayCoordinator.start()
-
-        router.present(navigationController)
+    // MARK: - TabTrayCoordinatorDelegate
+    func didDismissTabTray(from coordinator: TabTrayCoordinator) {
+        router.dismiss(animated: true, completion: nil)
+        remove(child: coordinator)
     }
 }

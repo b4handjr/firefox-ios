@@ -67,15 +67,17 @@ class PhotonActionSheetTests: BaseTestCase {
 
         // This is not ideal but only way to get the element on iPhone 8
         // for iPhone 11, that would be boundBy: 2
+        mozWaitForElementToExist(app.otherElements["ActivityListView"].otherElements["Example Domain"])
+        mozWaitForElementToExist(app.otherElements["ActivityListView"].otherElements["example.com"])
         mozWaitForElementToExist(app.collectionViews.cells["Copy"], timeout: TIMEOUT)
-        mozWaitForElementToExist(app.collectionViews.scrollViews.cells["XCElementSnapshotPrivilegedValuePlaceholder"].firstMatch, timeout: TIMEOUT)
-        var  fennecElement = app.collectionViews.scrollViews.cells.element(boundBy: 2)
+
+        var  fennecElement = app.collectionViews.scrollViews.cells.element(boundBy: 3)
         if iPad() {
-            fennecElement = app.collectionViews.scrollViews.cells.element(boundBy: 1)
+            fennecElement = app.collectionViews.scrollViews.cells.element(boundBy: 2)
         }
         mozWaitForElementToExist(fennecElement, timeout: 5)
         fennecElement.tap()
-        mozWaitForElementToExist(app.navigationBars["ShareTo.ShareView"], timeout: TIMEOUT)
+        mozWaitForElementToExist(app.navigationBars["ShareTo.ShareView"])
     }
 
     // https://testrail.stage.mozaws.net/index.php?/cases/view/2306841

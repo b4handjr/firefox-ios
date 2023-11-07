@@ -16,6 +16,7 @@ final class TabTrayViewControllerTests: XCTestCase {
         DependencyHelperMock().bootstrapDependencies()
         delegate = MockTabTrayViewControllerDelegate()
         navigationController = DismissableNavigationViewController()
+        LegacyFeatureFlagsManager.shared.initializeDeveloperFeatures(with: MockProfile())
     }
 
     override func tearDown() {
@@ -84,30 +85,41 @@ final class TabTrayViewControllerTests: XCTestCase {
     }
 
     // MARK: - Private
-    private func createSubject(selectedSegment: LegacyTabTrayViewModel.Segment = .tabs,
+    private func createSubject(selectedSegment: TabTrayPanelType = .tabs,
                                file: StaticString = #file,
                                line: UInt = #line) -> TabTrayViewController {
-        let navigationController = createNavigationController()
-        let subject = TabTrayViewController(selectedSegment: selectedSegment,
-                                            delegate: delegate)
-        navigationController.setViewControllers([subject], animated: false)
+        let subject = TabTrayViewController(delegate: delegate)
+        subject.childPanelControllers = makeChildPanels()
+        subject.setupOpenPanel(panelType: selectedSegment)
+        let navigationController = createNavigationController(root: subject)
         navigationController.isNavigationBarHidden = false
 
         trackForMemoryLeaks(subject, file: file, line: line)
         return subject
     }
 
-    private func createNavigationController() -> UINavigationController {
-        let navigationController = DismissableNavigationViewController()
+    private func createNavigationController(root: UIViewController) -> UINavigationController {
+        let navigationController = DismissableNavigationViewController(rootViewController: root)
         let isPad = UIDevice.current.userInterfaceIdiom == .pad
         let modalPresentationStyle: UIModalPresentationStyle = isPad ? .fullScreen: .formSheet
         navigationController.modalPresentationStyle = modalPresentationStyle
 
         return navigationController
     }
+
+    private func makeChildPanels() -> [UINavigationController] {
+        let regularTabsPanel = TabDisplayViewController(isPrivateMode: false)
+        let privateTabsPanel = TabDisplayViewController(isPrivateMode: true)
+        let syncTabs = RemoteTabsPanel()
+        return [
+            ThemedNavigationController(rootViewController: regularTabsPanel),
+            ThemedNavigationController(rootViewController: privateTabsPanel),
+            ThemedNavigationController(rootViewController: syncTabs)
+        ]
+    }
 }
 
 // MARK: MockTabTrayViewControllerDelegate
 class MockTabTrayViewControllerDelegate: TabTrayViewControllerDelegate {
-    func didDismissTabTray() {}
+    func didFinish() {}
 }

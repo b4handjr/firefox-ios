@@ -21,7 +21,7 @@ class FakespotReliabilityCardView: UIView, ThemeApplicable {
         static let horizontalPadding: CGFloat = 8
         static let cornerRadius: CGFloat = 4
         static let letterVerticalPadding: CGFloat = 4
-        static let letterHorizontalPadding: CGFloat = 4
+        static let letterHorizontalPadding: CGFloat = 7
         static let descriptionVerticalPadding: CGFloat = 6
         static let descriptionHorizontalPadding: CGFloat = 8
         static let titleFontSize: CGFloat = 15
@@ -39,6 +39,7 @@ class FakespotReliabilityCardView: UIView, ThemeApplicable {
                                                            size: UX.titleFontSize,
                                                            weight: .semibold)
         view.numberOfLines = 0
+        view.accessibilityTraits.insert(.header)
     }
 
     private lazy var reliabilityScoreView: UIView = .build { view in
@@ -83,6 +84,8 @@ class FakespotReliabilityCardView: UIView, ThemeApplicable {
         titleLabel.accessibilityIdentifier = viewModel.titleA11yId
 
         reliabilityLetterLabel.text = viewModel.grade.rawValue
+        reliabilityLetterLabel.accessibilityLabel = String(format: .Shopping.ReliabilityScoreGradeA11yLabel,
+                                                           viewModel.grade.rawValue)
         reliabilityLetterLabel.accessibilityIdentifier = viewModel.gradeLetterA11yId
         reliabilityDescriptionLabel.text = viewModel.grade.description
         reliabilityDescriptionLabel.accessibilityIdentifier = viewModel.gradeDescriptionA11yId

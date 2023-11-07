@@ -9,6 +9,7 @@ public protocol Logger {
 
     func setup(sendUsageData: Bool)
     func configure(crashManager: CrashManager)
+    func logCustomError(error: Error)
 
     /// Log a new message to the logging system
     /// - Parameters:
@@ -31,6 +32,9 @@ public protocol Logger {
 
     /// Provide method to save log files to document folder so we can retrieve it more easily on devices
     func copyLogsToDocuments()
+
+    /// Deletes cached log files.
+    func deleteCachedLogFiles()
 }
 
 public extension Logger {

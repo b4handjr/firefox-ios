@@ -11,17 +11,14 @@ import ComponentLibrary
 final class FakespotOptInCardView: UIView, ThemeApplicable {
     private struct UX {
         static let headerLabelFontSize: CGFloat = 28
-        static let bodyFirstParagraphLabelFontSize: CGFloat = 15
+        static let bodyLabelFontSize: CGFloat = 15
         static let learnMoreButtonFontSize: CGFloat = 15
         static let termsOfUseButtonInsets = UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
         static let disclaimerTextLabelFontSize: CGFloat = 13
-        static let disclaimerBlockInsets = UIEdgeInsets(top: 0, left: 16, bottom: 0, right: 16)
-        static let learnMoreInsets = UIEdgeInsets(top: -10, left: 0, bottom: 10, right: 0)
+        static let disclaimerBlockInsets = NSDirectionalEdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16)
+        static let learnMoreInsets = NSDirectionalEdgeInsets(top: -10, leading: 0, bottom: 10, trailing: 0)
         static let termsOfUseButtonTitleFontSize: CGFloat = 13
         static let privacyPolicyButtonTitleFontSize: CGFloat = 13
-        static let mainButtonFontSize: CGFloat = 16
-        static let mainButtonCornerRadius: CGFloat = 14
-        static let mainButtonInsets = UIEdgeInsets(top: 12, left: 0, bottom: 12, right: 0)
         static let secondaryButtonFontSize: CGFloat = 13
         static let contentStackViewSpacing: CGFloat = 12
         static let contentStackViewPadding: CGFloat = 16
@@ -57,13 +54,14 @@ final class FakespotOptInCardView: UIView, ThemeApplicable {
         label.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .headline,
                                                             size: UX.headerLabelFontSize,
                                                             weight: .medium)
+        label.accessibilityTraits.insert(.header)
     }
 
-    private lazy var bodyFirstParagraphLabel: UILabel = .build { label in
+    private lazy var bodyLabel: UILabel = .build { label in
         label.numberOfLines = 0
         label.adjustsFontForContentSizeCategory = true
         label.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .body,
-                                                            size: UX.bodyFirstParagraphLabelFontSize)
+                                                            size: UX.bodyLabelFontSize)
     }
 
     private lazy var disclaimerTextLabel: UILabel = .build { label in
@@ -74,50 +72,24 @@ final class FakespotOptInCardView: UIView, ThemeApplicable {
     }
 
     // MARK: Buttons
-    private lazy var learnMoreButton: ResizableButton = .build { button in
-        button.contentHorizontalAlignment = .leading
-        button.buttonEdgeSpacing = 0
+    private lazy var learnMoreButton: LinkButton = .build { button in
         button.addTarget(self, action: #selector(self.didTapLearnMore), for: .touchUpInside)
-        button.titleLabel?.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .body,
-                                                                         size: UX.learnMoreButtonFontSize)
-        button.contentEdgeInsets = UX.learnMoreInsets
     }
 
-    private lazy var termsOfUseButton: ResizableButton = .build { button in
-        button.contentHorizontalAlignment = .leading
-        button.buttonEdgeSpacing = 0
-        button.contentEdgeInsets = UX.disclaimerBlockInsets
+    private lazy var termsOfUseButton: LinkButton = .build { button in
         button.addTarget(self, action: #selector(self.didTapTermsOfUse), for: .touchUpInside)
-        button.titleLabel?.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .body,
-                                                                         size: UX.termsOfUseButtonTitleFontSize)
     }
 
-    private lazy var privacyPolicyButton: ResizableButton = .build { button in
-        button.contentHorizontalAlignment = .leading
-        button.buttonEdgeSpacing = 0
-        button.contentEdgeInsets = UX.disclaimerBlockInsets
+    private lazy var privacyPolicyButton: LinkButton = .build { button in
         button.addTarget(self, action: #selector(self.didTapPrivacyPolicy), for: .touchUpInside)
-        button.titleLabel?.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .body,
-                                                                         size: UX.privacyPolicyButtonTitleFontSize)
     }
 
-    private lazy var mainButton: ResizableButton = .build { button in
-        button.contentHorizontalAlignment = .center
-        button.buttonEdgeSpacing = 0
-        button.layer.cornerRadius = UX.mainButtonCornerRadius
-        button.contentEdgeInsets = UX.mainButtonInsets
+    private lazy var mainButton: PrimaryRoundedButton = .build { button in
         button.addTarget(self, action: #selector(self.didTapMainButton), for: .touchUpInside)
-        button.titleLabel?.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .headline,
-                                                                         size: UX.mainButtonFontSize,
-                                                                         weight: .semibold)
     }
 
-    private lazy var secondaryButton: ResizableButton = .build { button in
-        button.contentHorizontalAlignment = .center
-        button.buttonEdgeSpacing = 0
+    private lazy var secondaryButton: LinkButton = .build { button in
         button.addTarget(self, action: #selector(self.didTapSecondaryButton), for: .touchUpInside)
-        button.titleLabel?.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .body,
-                                                                         size: UX.secondaryButtonFontSize)
     }
 
     override init(frame: CGRect) {
@@ -136,7 +108,7 @@ final class FakespotOptInCardView: UIView, ThemeApplicable {
         mainView.addSubview(contentStackView)
         contentStackView.addArrangedSubview(headerLabel)
 
-        contentStackView.addArrangedSubview(bodyFirstParagraphLabel)
+        contentStackView.addArrangedSubview(bodyLabel)
         contentStackView.addArrangedSubview(learnMoreButton)
 
         contentStackView.addArrangedSubview(optInImageView)
@@ -204,29 +176,53 @@ final class FakespotOptInCardView: UIView, ThemeApplicable {
     func configure(_ viewModel: FakespotOptInCardViewModel) {
         self.viewModel = viewModel
 
-        headerLabel.text = viewModel.headerTitleLabel
-        headerLabel.accessibilityIdentifier = viewModel.headerLabelA11yId
+        headerLabel.text = viewModel.headerTitle
+        headerLabel.accessibilityIdentifier = viewModel.headerA11yId
 
-        bodyFirstParagraphLabel.attributedText = viewModel.firstParagraphText
-        bodyFirstParagraphLabel.accessibilityIdentifier = viewModel.bodyFirstParagraphA11yId
+        bodyLabel.attributedText = viewModel.bodyText
+        bodyLabel.accessibilityIdentifier = viewModel.bodyA11yId
 
         disclaimerTextLabel.attributedText = viewModel.disclaimerText
-        disclaimerTextLabel.accessibilityIdentifier = viewModel.disclaimerTextLabelA11yId
+        disclaimerTextLabel.accessibilityIdentifier = viewModel.disclaimerLabelA11yId
 
-        learnMoreButton.setTitle(viewModel.learnMoreButton, for: .normal)
-        learnMoreButton.accessibilityIdentifier = viewModel.learnMoreButtonA11yId
+        let learnMoreButtonViewModel = LinkButtonViewModel(
+            title: viewModel.learnMoreButtonText,
+            a11yIdentifier: viewModel.learnMoreButtonA11yId,
+            fontSize: UX.learnMoreButtonFontSize,
+            contentInsets: UX.learnMoreInsets
+        )
+        learnMoreButton.configure(viewModel: learnMoreButtonViewModel)
 
-        termsOfUseButton.setTitle(viewModel.termsOfUseButton, for: .normal)
-        termsOfUseButton.accessibilityIdentifier = viewModel.termsOfUseButtonA11yId
+        let termsOfUseButtonViewModel = LinkButtonViewModel(
+            title: viewModel.termsOfUseButtonText,
+            a11yIdentifier: viewModel.termsOfUseButtonA11yId,
+            fontSize: UX.termsOfUseButtonTitleFontSize,
+            contentInsets: UX.disclaimerBlockInsets
+        )
+        termsOfUseButton.configure(viewModel: termsOfUseButtonViewModel)
 
-        privacyPolicyButton.setTitle(viewModel.privacyPolicyButton, for: .normal)
-        privacyPolicyButton.accessibilityIdentifier = viewModel.privacyPolicyButtonA11yId
+        let privacyButtonViewModel = LinkButtonViewModel(
+            title: viewModel.privacyPolicyButtonText,
+            a11yIdentifier: viewModel.privacyPolicyButtonA11yId,
+            fontSize: UX.privacyPolicyButtonTitleFontSize,
+            contentInsets: UX.disclaimerBlockInsets
+        )
+        privacyPolicyButton.configure(viewModel: privacyButtonViewModel)
 
-        mainButton.setTitle(viewModel.mainButton, for: .normal)
-        mainButton.accessibilityIdentifier = viewModel.mainButtonA11yId
+        let buttonViewModel = PrimaryRoundedButtonViewModel(
+            title: viewModel.mainButtonText,
+            a11yIdentifier: viewModel.mainButtonA11yId
+        )
+        mainButton.configure(viewModel: buttonViewModel)
 
-        secondaryButton.setTitle(viewModel.secondaryButton, for: .normal)
-        secondaryButton.accessibilityIdentifier = viewModel.secondaryButtonA11yId
+        let secondaryButtonViewModel = LinkButtonViewModel(
+            title: viewModel.secondaryButtonText,
+            a11yIdentifier: viewModel.secondaryButtonA11yId,
+            fontSize: UX.secondaryButtonFontSize,
+            contentInsets: .zero,
+            contentHorizontalAlignment: .center
+        )
+        secondaryButton.configure(viewModel: secondaryButtonViewModel)
 
         let cardModel = ShadowCardViewModel(view: mainView, a11yId: viewModel.cardA11yId)
         cardContainer.configure(cardModel)
@@ -244,13 +240,12 @@ final class FakespotOptInCardView: UIView, ThemeApplicable {
         cardContainer.applyTheme(theme: theme)
         let colors = theme.colors
         headerLabel.textColor = colors.textPrimary
-        bodyFirstParagraphLabel.textColor = colors.textPrimary
+        bodyLabel.textColor = colors.textPrimary
         disclaimerTextLabel.textColor = colors.textSecondary
-        learnMoreButton.setTitleColor(colors.textAccent, for: .normal)
-        termsOfUseButton.setTitleColor(colors.textAccent, for: .normal)
-        privacyPolicyButton.setTitleColor(colors.textAccent, for: .normal)
-        mainButton.setTitleColor(colors.textInverted, for: .normal)
-        mainButton.backgroundColor = colors.actionPrimary
-        secondaryButton.setTitleColor(colors.textAccent, for: .normal)
+        learnMoreButton.applyTheme(theme: theme)
+        termsOfUseButton.applyTheme(theme: theme)
+        privacyPolicyButton.applyTheme(theme: theme)
+        mainButton.applyTheme(theme: theme)
+        secondaryButton.applyTheme(theme: theme)
     }
 }

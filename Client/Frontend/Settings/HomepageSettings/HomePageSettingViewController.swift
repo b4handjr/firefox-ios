@@ -19,17 +19,13 @@ class HomePageSettingViewController: SettingsTableViewController, FeatureFlaggab
         return featureFlags.isFeatureEnabled(.jumpBackIn, checking: .buildOnly)
     }
 
-    var isRecentlySavedSectionEnabled: Bool {
-        return featureFlags.isFeatureEnabled(.recentlySaved, checking: .buildOnly)
-    }
-
     var isWallpaperSectionEnabled: Bool {
         return wallpaperManager.canSettingsBeShown &&
             featureFlags.isFeatureEnabled(.wallpapers, checking: .buildOnly)
     }
 
     var isPocketSectionEnabled: Bool {
-        return featureFlags.isFeatureEnabled(.pocket, checking: .buildOnly)
+        return PocketProvider.islocaleSupported(Locale.current.identifier)
     }
 
     var isHistoryHighlightsSectionEnabled: Bool {
@@ -133,17 +129,24 @@ class HomePageSettingViewController: SettingsTableViewController, FeatureFlaggab
             PocketAppName.shortName.rawValue)
 
         let pocketSetting = BoolSetting(
-            with: .pocket,
-            titleText: NSAttributedString(string: .Settings.Homepage.CustomizeFirefoxHome.ThoughtProvokingStories),
-            statusText: NSAttributedString(string: pocketStatusText)) { [weak self] _ in
-                self?.tableView.reloadData()
-        }
+            prefs: profile.prefs,
+            theme: themeManager.currentTheme,
+            prefKey: PrefsKeys.UserFeatureFlagPrefs.ASPocketStories,
+            defaultValue: true,
+            titleText: .Settings.Homepage.CustomizeFirefoxHome.ThoughtProvokingStories,
+            statusText: pocketStatusText
+        )
 
         let jumpBackInSetting = BoolSetting(with: .jumpBackIn,
                                             titleText: NSAttributedString(string: .Settings.Homepage.CustomizeFirefoxHome.JumpBackIn))
 
-        let recentlySavedSetting = BoolSetting(with: .recentlySaved,
-                                               titleText: NSAttributedString(string: .Settings.Homepage.CustomizeFirefoxHome.RecentlySaved))
+        let recentlySavedSetting = BoolSetting(
+            prefs: profile.prefs,
+            theme: themeManager.currentTheme,
+            prefKey: PrefsKeys.UserFeatureFlagPrefs.RecentlySavedSection,
+            defaultValue: true,
+            titleText: .Settings.Homepage.CustomizeFirefoxHome.RecentlySaved
+        )
 
         let historyHighlightsSetting = BoolSetting(with: .historyHighlights,
                                                    titleText: NSAttributedString(string: .Settings.Homepage.CustomizeFirefoxHome.RecentlyVisited))
@@ -158,9 +161,7 @@ class HomePageSettingViewController: SettingsTableViewController, FeatureFlaggab
             sectionItems.append(jumpBackInSetting)
         }
 
-        if isRecentlySavedSectionEnabled {
-            sectionItems.append(recentlySavedSetting)
-        }
+        sectionItems.append(recentlySavedSetting)
 
         if isHistoryHighlightsSectionEnabled {
             sectionItems.append(historyHighlightsSetting)
@@ -242,7 +243,7 @@ extension HomePageSettingViewController {
         override var style: UITableViewCell.CellStyle { return .value1 }
 
         override var status: NSAttributedString {
-            let areShortcutsOn = featureFlags.isFeatureEnabled(.topSites, checking: .userOnly)
+            let areShortcutsOn = profile.prefs.boolForKey(PrefsKeys.UserFeatureFlagPrefs.TopSiteSection) ?? true
             let status: String = areShortcutsOn ? .Settings.Homepage.Shortcuts.ToggleOn : .Settings.Homepage.Shortcuts.ToggleOff
             return NSAttributedString(string: String(format: status))
         }

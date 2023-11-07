@@ -261,6 +261,26 @@ final class SettingsCoordinatorTests: XCTestCase {
         XCTAssertTrue(subject.childCoordinators.first is PasswordManagerCoordinator)
     }
 
+    func testShowQRCode_addsQRCodeChildCoordinator() {
+        let subject = createSubject()
+        let delegate = MockQRCodeViewControllerDelegate()
+
+        subject.showQRCode(delegate: delegate)
+
+        XCTAssertEqual(subject.childCoordinators.count, 1)
+        XCTAssertTrue(subject.childCoordinators.first is QRCodeCoordinator)
+    }
+
+    func testShowQRCode_presentsQRCodeNavigationController() {
+        let subject = createSubject()
+        let delegate = MockQRCodeViewControllerDelegate()
+
+        subject.showQRCode(delegate: delegate)
+
+        XCTAssertEqual(mockRouter.presentCalled, 1)
+        XCTAssertTrue(mockRouter.presentedViewController is QRCodeNavigationController)
+    }
+
     func testDidFinishShowingSettings_callsDidFinish() {
         let subject = createSubject()
         subject.parentCoordinator = delegate
@@ -274,7 +294,7 @@ final class SettingsCoordinatorTests: XCTestCase {
     func testHandleRouteSettings_generalIsHandled() {
         let subject = createSubject()
 
-        let result = subject.handle(route: .settings(section: .general))
+        let result = testCanHandleAndHandle(subject, route: .settings(section: .general))
 
         XCTAssertTrue(result)
     }
@@ -282,7 +302,7 @@ final class SettingsCoordinatorTests: XCTestCase {
     func testHandleRouteOther_notHandled() {
         let subject = createSubject()
 
-        let result = subject.handle(route: .homepanel(section: .downloads))
+        let result = testCanHandleAndHandle(subject, route: .homepanel(section: .downloads))
 
         XCTAssertFalse(result)
     }
@@ -499,6 +519,12 @@ final class SettingsCoordinatorTests: XCTestCase {
                                           wallpaperManager: wallpaperManager)
         trackForMemoryLeaks(subject)
         return subject
+    }
+
+    private func testCanHandleAndHandle(_ subject: Coordinator, route: Route) -> Bool {
+        let result = subject.canHandle(route: route)
+        subject.handle(route: route)
+        return result
     }
 }
 

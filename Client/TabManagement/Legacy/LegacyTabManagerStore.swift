@@ -9,25 +9,10 @@ import Shared
 
 protocol LegacyTabManagerStore {
     var isRestoringTabs: Bool { get }
-    var hasTabsToRestoreAtStartup: Bool { get }
     var tabs: [LegacySavedTab] { get }
-
-    func preserveScreenshot(forTab tab: Tab?)
-    func removeScreenshot(forTab tab: Tab?)
-
-    func preserveTabs(_ tabs: [Tab],
-                      selectedTab: Tab?)
 
     func restoreStartupTabs(clearPrivateTabs: Bool,
                             addTabClosure: @escaping (Bool) -> Tab) -> Tab?
-
-    func clearArchive()
-}
-
-extension LegacyTabManagerStore {
-    func preserveTabs(_ tabs: [Tab], selectedTab: Tab?) {
-        preserveTabs(tabs, selectedTab: selectedTab)
-    }
 }
 
 class LegacyTabManagerStoreImplementation: LegacyTabManagerStore, FeatureFlaggable {
@@ -35,7 +20,6 @@ class LegacyTabManagerStoreImplementation: LegacyTabManagerStore, FeatureFlaggab
     private let logger: Logger
     private let tabsKey = "tabs"
     private let prefs: Prefs
-    private let imageStore: DiskImageStore?
     private var fileManager: LegacyTabFileManager
     private var writeOperation = DispatchWorkItem {}
     private let serialQueue: DispatchQueueInterface
@@ -47,74 +31,18 @@ class LegacyTabManagerStoreImplementation: LegacyTabManagerStore, FeatureFlaggab
         return lockedForReading
     }
 
-    var hasTabsToRestoreAtStartup: Bool {
-        return !tabs.isEmpty
-    }
-
     // MARK: - Initializer
 
     init(prefs: Prefs,
-         imageStore: DiskImageStore?,
          fileManager: LegacyTabFileManager = FileManager.default,
          serialQueue: DispatchQueueInterface = DispatchQueue(label: "tab-manager-write-queue"),
          logger: Logger = DefaultLogger.shared) {
         self.prefs = prefs
-        self.imageStore = imageStore
         self.fileManager = fileManager
         self.serialQueue = serialQueue
         self.logger = logger
         self.tabDataRetriever = LegacyTabDataRetrieverImplementation(fileManager: fileManager)
         tabDataRetriever.tabsStateArchivePath = tabsStateArchivePath()
-    }
-
-    // MARK: - Screenshots
-
-    func preserveScreenshot(forTab tab: Tab?) {
-        if let tab = tab, let screenshot = tab.screenshot, let uuidString = tab.screenshotUUID?.uuidString {
-            Task {
-                try? await imageStore?.saveImageForKey(uuidString, image: screenshot)
-            }
-        }
-    }
-
-    func removeScreenshot(forTab tab: Tab?) {
-        if let tab = tab, let screenshotUUID = tab.screenshotUUID {
-            Task {
-                await imageStore?.deleteImageForKey(screenshotUUID.uuidString)
-            }
-        }
-    }
-
-    // MARK: - Saving
-
-    /// Async write of the tab state. In most cases, code doesn't care about performing an operation
-    /// after this completes. Write failures (i.e. due to read locks) are considered inconsequential, as preserveTabs will be called frequently.
-    /// - Parameters:
-    ///   - tabs: The tabs to preserve
-    ///   - selectedTab: One of the saved tabs will be saved as the selected tab.
-    func preserveTabs(_ tabs: [Tab], selectedTab: Tab?) {
-        guard let savedTabs = prepareSavedTabs(fromTabs: tabs, selectedTab: selectedTab) else {
-            clearArchive()
-            return
-        }
-
-        // Preserving tabs is a main-only operation
-        ensureMainThread { [self] in
-            writeOperation.cancel()
-
-            let path = tabsStateArchivePath()
-            let tabStateData = archive(savedTabs: savedTabs)
-            let simpleTabs = SimpleTab.convertToSimpleTabs(savedTabs)
-
-            writeOperation = DispatchWorkItem { [weak self] in
-                SimpleTab.saveSimpleTab(tabs: simpleTabs)
-                self?.write(tabStateData: tabStateData, path: path)
-            }
-
-            // Delay by 100ms to debounce repeated calls to preserveTabs in quick succession.
-            // Notice above that a repeated 'preserveTabs' call will 'cancel()' a pending write operation.
-            serialQueue.asyncAfter(deadline: .now() + .milliseconds(100), execute: writeOperation)
-        }
     }
 
     // MARK: - Restoration
@@ -148,7 +76,7 @@ class LegacyTabManagerStoreImplementation: LegacyTabManagerStore, FeatureFlaggab
         for savedTab in savedTabs {
             // Provide an empty request to prevent a new tab from loading the home screen
             var tab = addTabClosure(savedTab.isPrivate)
-            tab = savedTab.configureSavedTabUsing(tab, imageStore: imageStore)
+            tab = savedTab.configureSavedTabUsing(tab)
             if savedTab.isSelected {
                 tabToSelect = tab
             }
@@ -157,35 +85,7 @@ class LegacyTabManagerStoreImplementation: LegacyTabManagerStore, FeatureFlaggab
         return tabToSelect
     }
 
-    func clearArchive() {
-        guard let path = tabsStateArchivePath() else { return }
-
-        do {
-            try fileManager.removeItem(at: path)
-        } catch let error {
-            logger.log("Clear archive couldn't be completed",
-                       level: .warning,
-                       category: .tabs,
-                       description: error.localizedDescription)
-        }
-    }
-
     // MARK: - Private
-
-    private func archive(savedTabs: [LegacySavedTab]) -> Data? {
-        let archiver = NSKeyedArchiver(requiringSecureCoding: false)
-        do {
-            try archiver.encodeEncodable(savedTabs, forKey: tabsKey)
-        } catch let error {
-            logger.log("Archiving savedTabs failed",
-                       level: .warning,
-                       category: .tabs,
-                       description: error.localizedDescription)
-            return nil
-        }
-
-        return archiver.encodedData
-    }
 
     var tabs: [LegacySavedTab] {
         guard let tabData = tabDataRetriever.getTabData() else {
@@ -205,11 +105,10 @@ class LegacyTabManagerStoreImplementation: LegacyTabManagerStore, FeatureFlaggab
     }
 
     private func savedTabError(description: String) -> [LegacySavedTab] {
-        logger.log("Failed to restore tabs",
+        logger.log("Failed to restore legacy tabs",
                    level: .warning,
                    category: .tabs,
                    description: description)
-        SimpleTab.saveSimpleTab(tabs: nil)
         return [LegacySavedTab]()
     }
 
@@ -239,28 +138,7 @@ class LegacyTabManagerStoreImplementation: LegacyTabManagerStore, FeatureFlaggab
             }
         }
 
-        // Clean up any screenshots that are no longer associated with a tab.
-        let savedUUIDsCopy = savedUUIDs
-        Task {
-            try? await imageStore?.clearAllScreenshotsExcluding(savedUUIDsCopy)
-        }
-
         return savedTabs.isEmpty ? nil : savedTabs
-    }
-
-    private func write(tabStateData: Data?, path: URL?) {
-        guard let data = tabStateData, let path = path else { return }
-        do {
-            try data.write(to: path, options: [])
-            logger.log("PreserveTabs write succeeded with bytes count: \(data.count)",
-                       level: .debug,
-                       category: .tabs)
-        } catch {
-            // Failure could happen when restoring
-            logger.log("PreserveTabs write failed with bytes count: \(data.count)",
-                       level: .debug,
-                       category: .tabs)
-        }
     }
 }
 

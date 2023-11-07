@@ -4,11 +4,10 @@
 
 import Common
 import Foundation
-import SwiftyJSON
 import MozillaAppServices
 
 public protocol JSONLiteralConvertible {
-    func asJSON() -> JSON
+    func asJSON() -> [String: Any]
 }
 
 open class KeychainCache<T: JSONLiteralConvertible> {
@@ -30,32 +29,46 @@ open class KeychainCache<T: JSONLiteralConvertible> {
     open class func fromBranch(_ branch: String,
                                withLabel label: String?,
                                withDefault defaultValue: T? = nil,
-                               factory: (JSON) -> T?,
+                               factory: ([String: Any]) -> T?,
                                logger: Logger = DefaultLogger.shared) -> KeychainCache<T> {
-        if let l = label {
-            let key = "\(branch).\(l)"
-            MZKeychainWrapper.sharedClientAppContainerKeychain.ensureStringItemAccessibility(.afterFirstUnlock, forKey: key)
-            if let s = MZKeychainWrapper.sharedClientAppContainerKeychain.string(forKey: key) {
-                if let t = factory(JSON(parseJSON: s)) {
-                    logger.log("Read \(branch) from Keychain with label \(branch).\(l).",
-                               level: .debug,
-                               category: .storage)
-                    return KeychainCache(branch: branch, label: l, value: t)
-                } else {
-                    logger.log("Found \(branch) in Keychain with label \(branch).\(l), but could not parse it.",
-                               level: .warning,
-                               category: .storage)
-                }
-            } else {
-                logger.log("Did not find \(branch) in Keychain with label \(branch).\(l).",
-                           level: .warning,
-                           category: .storage)
-            }
-        } else {
+        guard let label = label else {
             logger.log("Did not find \(branch) label in Keychain.",
                        level: .warning,
                        category: .storage)
+            return failToReadFromBranch(branch, withLogger: logger, withLabel: label, withDefaultValue: defaultValue)
         }
+
+        let key = "\(branch).\(label)"
+        MZKeychainWrapper.sharedClientAppContainerKeychain.ensureStringItemAccessibility(.afterFirstUnlock, forKey: key)
+
+        guard let keychainString = MZKeychainWrapper.sharedClientAppContainerKeychain.string(forKey: key) else {
+            logger.log("Did not find \(branch) in Keychain with label \(branch).\(label).",
+                       level: .warning,
+                       category: .storage)
+            return failToReadFromBranch(branch, withLogger: logger, withLabel: label, withDefaultValue: defaultValue)
+        }
+
+        guard let data = keychainString.data(using: .utf8), let dictionaryObject = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] else {
+            logger.log("Found \(branch) in Keychain with label \(branch).\(label), but could not parse it.",
+                       level: .warning,
+                       category: .storage)
+            return failToReadFromBranch(branch, withLogger: logger, withLabel: label, withDefaultValue: defaultValue)
+        }
+
+        guard let value = factory(dictionaryObject) else {
+            logger.log("Found \(branch) in Keychain with label \(branch).\(label), data parsed, but could not convert it.",
+                       level: .warning,
+                       category: .storage)
+            return failToReadFromBranch(branch, withLogger: logger, withLabel: label, withDefaultValue: defaultValue)
+        }
+
+        logger.log("Read \(branch) from Keychain with label \(branch).\(label).",
+                   level: .debug,
+                   category: .storage)
+        return KeychainCache(branch: branch, label: label, value: value)
+    }
+
+    private class func failToReadFromBranch(_ branch: String, withLogger logger: Logger, withLabel label: String?, withDefaultValue defaultValue: T? = nil) -> KeychainCache {
         // Fall through to missing.
         logger.log("Failed to read \(branch) from Keychain.",
                    level: .warning,
@@ -66,7 +79,7 @@ open class KeychainCache<T: JSONLiteralConvertible> {
 
     open func checkpoint() {
         if let value = value,
-            let jsonString = value.asJSON().stringify() {
+           let jsonString = value.asJSON().asString {
             MZKeychainWrapper.sharedClientAppContainerKeychain.set(jsonString, forKey: "\(branch).\(label)", withAccessibility: .afterFirstUnlock)
         } else {
             MZKeychainWrapper.sharedClientAppContainerKeychain.removeObject(forKey: "\(branch).\(label)")

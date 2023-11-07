@@ -45,9 +45,6 @@ class LegacyDynamicFontHelper: NSObject {
     var DeviceFont: UIFont {
         return UIFont.systemFont(ofSize: deviceFontSize, weight: UIFont.Weight.medium)
     }
-    var DeviceFontSmall: UIFont {
-        return UIFont.systemFont(ofSize: deviceFontSize - 1, weight: UIFont.Weight.medium)
-    }
 
     /*
      Activity Stream supports dynamic fonts up to a certain point. Small fonts dont work.
@@ -79,9 +76,6 @@ class LegacyDynamicFontHelper: NSObject {
      * Small
      */
     fileprivate var defaultSmallFontSize: CGFloat
-    var DefaultSmallFont: UIFont {
-        return UIFont.systemFont(ofSize: defaultSmallFontSize, weight: UIFont.Weight.regular)
-    }
 
     /**
      * Standard

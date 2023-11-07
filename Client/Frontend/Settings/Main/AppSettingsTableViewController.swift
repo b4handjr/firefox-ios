@@ -18,7 +18,6 @@ protocol SettingsFlowDelegate: AnyObject,
     func showExperiments()
     func showFirefoxSuggest()
     func showPasswordManager(shouldShowOnboarding: Bool)
-
     func didFinishShowingSettings()
 }
 
@@ -312,6 +311,7 @@ class AppSettingsTableViewController: SettingsTableViewController,
             ExperimentsSettings(settings: self, settingsDelegate: self),
             ExportLogDataSetting(settings: self),
             ExportBrowserDataSetting(settings: self),
+            AppDataUsageReportSetting(settings: self),
             DeleteExportedDataSetting(settings: self),
             ForceCrashSetting(settings: self),
             ForgetSyncAuthStateDebugSetting(settings: self),

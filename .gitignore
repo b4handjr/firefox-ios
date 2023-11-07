@@ -50,7 +50,7 @@ DerivedData
 /fastlane/templates
 
 # content blocking lists
-content-blocker-lib-ios/Lists/*
+Client/ContentBlocker/Lists/*
 
 #python environment
 python-env/
@@ -114,3 +114,7 @@ nimbus-fml/
 
 # tmp files
 /test-fixtures/tmp/*
+
+# Nimbus build artifacts.
+bin/nimbus-fml-configuration.local.sh
+bin/nimbus-fml.sh

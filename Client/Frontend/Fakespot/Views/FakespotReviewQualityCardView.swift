@@ -82,7 +82,10 @@ final class FakespotReviewQualityCardView: UIView, Notifiable, ThemeApplicable {
     }
 
     private lazy var headlineLabel: UILabel = .build { label in
-        label.text = .Shopping.ReviewQualityCardHeadlineLabel
+        let text = String.localizedStringWithFormat(.Shopping.ReviewQualityCardHeadlineLabel,
+                                                    FakespotName.shortName.rawValue,
+                                                    MozillaName.shortName.rawValue)
+        label.text = text
         label.accessibilityIdentifier = AccessibilityIdentifiers.Shopping.ReviewQualityCard.headlineLabel
         label.numberOfLines = 0
         label.adjustsFontForContentSizeCategory = true
@@ -185,7 +188,9 @@ final class FakespotReviewQualityCardView: UIView, Notifiable, ThemeApplicable {
 
     private lazy var learnMoreButton: ResizableButton = .build { button in
         button.contentHorizontalAlignment = .leading
-        button.setTitle(.Shopping.ReviewQualityCardLearnMoreButtonTitle, for: .normal)
+        let title = String.localizedStringWithFormat(.Shopping.ReviewQualityCardLearnMoreButtonTitle,
+                                                     FakespotName.shortName.rawValue)
+        button.setTitle(title, for: .normal)
         button.accessibilityIdentifier = AccessibilityIdentifiers.Shopping.ReviewQualityCard.learnMoreButtonTitle
         button.titleLabel?.adjustsFontForContentSizeCategory = true
         button.buttonEdgeSpacing = 0
@@ -199,6 +204,8 @@ final class FakespotReviewQualityCardView: UIView, Notifiable, ThemeApplicable {
         setupNotifications(forObserver: self,
                            observing: [.DynamicFontChanged])
         setupLayout()
+
+        updateA11yElementOrder()
     }
 
     required init?(coder: NSCoder) {
@@ -252,9 +259,20 @@ final class FakespotReviewQualityCardView: UIView, Notifiable, ThemeApplicable {
             abRatingsReliableLabelStackView.spacing = UX.abdfRatingsStackViewSpacing
             dfRatingsReliableLabelStackView.spacing = UX.abdfRatingsStackViewSpacing
         }
+    }
 
-        setNeedsLayout()
-        layoutIfNeeded()
+    private func updateA11yElementOrder() {
+        headlineStackView.accessibilityElements = [headlineLabel, subHeadlineLabel]
+        ratingsStackView.accessibilityElements = [
+            aReliabilityScoreView,
+            bReliabilityScoreView,
+            reliableReviewsLabel,
+            cReliabilityScoreView,
+            mixReliableReviewsLabel,
+            dReliabilityScoreView,
+            fReliabilityScoreView,
+            unreliableReviewsLabel]
+        contentStackView.accessibilityElements = [headlineStackView, ratingsStackView, footerStackView, learnMoreButton]
     }
 
     @objc
@@ -274,8 +292,8 @@ final class FakespotReviewQualityCardView: UIView, Notifiable, ThemeApplicable {
             title: .Shopping.ReviewQualityCardLabelTitle,
             titleA11yId: AccessibilityIdentifiers.Shopping.ReviewQualityCard.title,
             expandButtonA11yId: AccessibilityIdentifiers.Shopping.ReviewQualityCard.expandButton,
-            expandButtonA11yLabelExpanded: .Shopping.ReviewQualityCardExpandedAccessibilityLabel,
-            expandButtonA11yLabelCollapsed: .Shopping.ReviewQualityCardCollapsedAccessibilityLabel)
+            expandButtonA11yLabelExpand: .Shopping.ReviewQualityCardExpandAccessibilityLabel,
+            expandButtonA11yLabelCollapse: .Shopping.ReviewQualityCardCollapseAccessibilityLabel)
         collapsibleContainer.configure(viewModel)
     }
 

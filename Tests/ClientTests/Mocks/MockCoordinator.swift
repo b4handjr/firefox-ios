@@ -12,10 +12,11 @@ class MockCoordinator: Coordinator {
     var router: Router
     var savedRoute: Route?
     var logger: Logger = MockLogger()
+    var isDismissable = true
 
     var addChildCalled = 0
     var removedChildCalled = 0
-    var handleRouteCalled = 0
+    var canHandleRouteCalled = 0
     var findRouteCalled = 0
 
     init(router: MockRouter) {
@@ -30,9 +31,15 @@ class MockCoordinator: Coordinator {
         removedChildCalled += 1
     }
 
-    func handle(route: Route) -> Bool {
-        handleRouteCalled += 1
+    func canHandle(route: Route) -> Bool {
+        canHandleRouteCalled += 1
         return false
+    }
+
+    func handle(route: Route) { }
+
+    func find(route: Route) -> Coordinator? {
+        return nil
     }
 
     @discardableResult

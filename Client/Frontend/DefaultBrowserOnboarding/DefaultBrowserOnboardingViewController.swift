@@ -102,12 +102,8 @@ class DefaultBrowserOnboardingViewController: UIViewController, OnViewDismissabl
         label.accessibilityIdentifier = AccessibilityIdentifiers.FirefoxHomepage.HomeTabBanner.descriptionLabel3
     }
 
-    private lazy var goToSettingsButton: ResizableButton = .build { button in
-        button.layer.cornerRadius = UX.ctaButtonCornerRadius
-        button.accessibilityIdentifier = AccessibilityIdentifiers.FirefoxHomepage.HomeTabBanner.ctaButton
-        button.titleLabel?.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .title3, size: 20)
-        button.contentEdgeInsets = UIEdgeInsets(top: 15, left: 15, bottom: 15, right: 15)
-        button.titleLabel?.textAlignment = .center
+    private lazy var goToSettingsButton: PrimaryRoundedButton = .build { button in
+        button.addTarget(self, action: #selector(self.goToSettings), for: .touchUpInside)
     }
 
     // MARK: - Inits
@@ -132,19 +128,6 @@ class DefaultBrowserOnboardingViewController: UIViewController, OnViewDismissabl
         applyTheme()
     }
 
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        // Portrait orientation: lock enable
-        OrientationLockUtility.lockOrientation(UIInterfaceOrientationMask.portrait,
-                                               andRotateTo: UIInterfaceOrientation.portrait)
-    }
-
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        // Portrait orientation: lock disable
-        OrientationLockUtility.lockOrientation(UIInterfaceOrientationMask.all)
-    }
-
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         onViewDismissed?()
@@ -157,10 +140,15 @@ class DefaultBrowserOnboardingViewController: UIViewController, OnViewDismissabl
         descriptionLabel1.text = viewModel.model?.descriptionText[1]
         descriptionLabel2.text = viewModel.model?.descriptionText[2]
         descriptionLabel3.text = viewModel.model?.descriptionText[3]
-        goToSettingsButton.setTitle(.DefaultBrowserOnboardingButton, for: .normal)
 
         closeButton.addTarget(self, action: #selector(dismissAnimated), for: .touchUpInside)
-        goToSettingsButton.addTarget(self, action: #selector(goToSettings), for: .touchUpInside)
+
+        let goToSettingsButtonViewModel = PrimaryRoundedButtonViewModel(
+            title: .DefaultBrowserOnboardingButton,
+            a11yIdentifier: AccessibilityIdentifiers.FirefoxHomepage.HomeTabBanner.ctaButton
+        )
+        goToSettingsButton.configure(viewModel: goToSettingsButtonViewModel)
+        goToSettingsButton.applyTheme(theme: themeManager.currentTheme)
 
         setupLayout()
     }
@@ -275,9 +263,20 @@ class DefaultBrowserOnboardingViewController: UIViewController, OnViewDismissabl
         descriptionLabel2.textColor = theme.colors.textPrimary
         descriptionLabel3.textColor = theme.colors.textPrimary
 
-        goToSettingsButton.backgroundColor = theme.colors.actionPrimary
-        goToSettingsButton.setTitleColor(theme.colors.textInverted, for: .normal)
-
         closeButton.tintColor = theme.colors.textSecondary
+    }
+
+    // MARK: - Orientation
+
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
+        return .portrait
+    }
+
+    override var shouldAutorotate: Bool {
+        return false
+    }
+
+    override var prefersStatusBarHidden: Bool {
+        return true
     }
 }

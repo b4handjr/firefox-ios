@@ -32,11 +32,11 @@ class DismissableNavigationViewController: UINavigationController, OnViewDismiss
 
 extension BrowserViewController: URLBarDelegate {
     func showTabTray(withFocusOnUnselectedTab tabToFocus: Tab? = nil,
-                     focusedSegment: LegacyTabTrayViewModel.Segment? = nil) {
+                     focusedSegment: TabTrayPanelType? = nil) {
         updateFindInPageVisibility(visible: false)
 
         guard !isTabTrayRefactorEnabled else {
-            navigationHandler?.showTabTray()
+            navigationHandler?.showTabTray(selectedPanel: focusedSegment ?? .tabs)
             return
         }
 
@@ -45,7 +45,7 @@ extension BrowserViewController: URLBarDelegate {
     }
 
     private func showLegacyTabTrayViewController(withFocusOnUnselectedTab tabToFocus: Tab? = nil,
-                                                 focusedSegment: LegacyTabTrayViewModel.Segment? = nil) {
+                                                 focusedSegment: TabTrayPanelType? = nil) {
         self.tabTrayViewController = LegacyTabTrayViewController(
             tabTrayDelegate: self,
             profile: profile,
@@ -128,6 +128,13 @@ extension BrowserViewController: URLBarDelegate {
     }
 
     func urlBarPresentCFR(at sourceView: UIView) {
+        // Checks if the app started with the Homepage tab
+        // If true, don't show the CFR to avoid showing it on the Homepage
+        guard !didStartAtHome else {
+            didStartAtHome = false
+            return
+        }
+
         let contextualViewProvider = ContextualHintViewProvider(forHintType: .shoppingExperience,
                                                                 with: profile)
 
@@ -136,6 +143,7 @@ extension BrowserViewController: URLBarDelegate {
         contextHintVC.configure(
             anchor: sourceView,
             withArrowDirection: isBottomSearchBar ? .down : .up,
+            andDelegate: self,
             presentedUsing: {
                 self.present(contextHintVC, animated: true)
                 TelemetryWrapper.recordEvent(category: .action,

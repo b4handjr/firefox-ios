@@ -17,10 +17,6 @@ class FeatureFlagManagerTests: XCTestCase, FeatureFlaggable {
         LegacyFeatureFlagsManager.shared.initializeDeveloperFeatures(with: mockProfile)
     }
 
-    override func tearDown() {
-        super.tearDown()
-    }
-
     // MARK: - Tests
     func testExpectedCoreFeatures() {
         let adjustSetting = featureFlags.isCoreFeatureEnabled(.adjustEnvironmentProd)
@@ -46,14 +42,8 @@ class FeatureFlagManagerTests: XCTestCase, FeatureFlaggable {
         XCTAssertTrue(featureFlags.isFeatureEnabled(.inactiveTabs, checking: .userOnly))
         XCTAssertTrue(featureFlags.isFeatureEnabled(.jumpBackIn, checking: .buildOnly))
         XCTAssertTrue(featureFlags.isFeatureEnabled(.jumpBackIn, checking: .userOnly))
-        XCTAssertTrue(featureFlags.isFeatureEnabled(.pocket, checking: .buildOnly))
-        XCTAssertTrue(featureFlags.isFeatureEnabled(.pocket, checking: .userOnly))
-        XCTAssertTrue(featureFlags.isFeatureEnabled(.recentlySaved, checking: .buildOnly))
-        XCTAssertTrue(featureFlags.isFeatureEnabled(.recentlySaved, checking: .userOnly))
         XCTAssertTrue(featureFlags.isFeatureEnabled(.reportSiteIssue, checking: .buildOnly))
         XCTAssertTrue(featureFlags.isFeatureEnabled(.reportSiteIssue, checking: .userOnly))
-        XCTAssertTrue(featureFlags.isFeatureEnabled(.topSites, checking: .buildOnly))
-        XCTAssertTrue(featureFlags.isFeatureEnabled(.topSites, checking: .userOnly))
         XCTAssertTrue(featureFlags.isFeatureEnabled(.wallpapers, checking: .buildOnly))
     }
 

@@ -79,8 +79,8 @@ class LegacyTabManager: NSObject, FeatureFlaggable, TabManager, TabEventHandler 
     }
 
     var normalActiveTabs: [Tab] {
-        return InactiveTabViewModel.getActiveEligibleTabsFrom(normalTabs,
-                                                              profile: profile)
+        return LegacyInactiveTabViewModel.getActiveEligibleTabsFrom(normalTabs,
+                                                                    profile: profile)
     }
 
     var inactiveTabs: [Tab] {
@@ -151,7 +151,6 @@ class LegacyTabManager: NSObject, FeatureFlaggable, TabManager, TabEventHandler 
     // MARK: - Initializer
 
     init(profile: Profile,
-         imageStore: DiskImageStore?,
          logger: Logger = DefaultLogger.shared
     ) {
         self.profile = profile
@@ -159,7 +158,7 @@ class LegacyTabManager: NSObject, FeatureFlaggable, TabManager, TabEventHandler 
         self.tabEventHandlers = TabEventHandlers.create(with: profile)
         self.logger = logger
 
-        self.store = LegacyTabManagerStoreImplementation(prefs: profile.prefs, imageStore: imageStore)
+        self.store = LegacyTabManagerStoreImplementation(prefs: profile.prefs)
         super.init()
 
         register(self, forTabEvents: .didSetScreenshot)
@@ -317,9 +316,8 @@ class LegacyTabManager: NSObject, FeatureFlaggable, TabManager, TabEventHandler 
     }
 
     // MARK: - Clear and store
-    func preserveTabs() {
-        store.preserveTabs(tabs, selectedTab: selectedTab)
-    }
+    // TODO: FXIOS-7596 Remove when moving the TabManager protocol to TabManagerImplementation
+    func preserveTabs() { fatalError("should never be called") }
 
     func shouldClearPrivateTabs() -> Bool {
         return profile.prefs.boolForKey("settings.closePrivateTabs") ?? false
@@ -357,21 +355,14 @@ class LegacyTabManager: NSObject, FeatureFlaggable, TabManager, TabEventHandler 
         }
     }
 
-    func storeChanges() {
-        saveTabs(toProfile: profile, normalTabs)
-        store.preserveTabs(tabs, selectedTab: selectedTab)
-    }
-
-    func hasTabsToRestoreAtStartup() -> Bool {
-        return store.hasTabsToRestoreAtStartup
-    }
+    // TODO: FXIOS-7596 Remove when moving the TabManager protocol to TabManagerImplementation
+    func storeChanges() { fatalError("should never be called") }
 
     func restoreTabs(_ forced: Bool = false) {
         defer { checkForSingleTab() }
         guard forced || tabs.isEmpty,
               !AppConstants.isRunningUITests,
-              !DebugSettingsBundleOptions.skipSessionRestore,
-              store.hasTabsToRestoreAtStartup
+              !DebugSettingsBundleOptions.skipSessionRestore
         else { return }
 
         isRestoringTabs = true
@@ -798,27 +789,6 @@ class LegacyTabManager: NSObject, FeatureFlaggable, TabManager, TabEventHandler 
         delegates.forEach { $0.get()?.tabManagerDidRemoveAllTabs(self, toast: toast) }
     }
 
-    // MARK: - TabEventHandler
-    func tabDidSetScreenshot(_ tab: Tab, hasHomeScreenshot: Bool) {
-        guard tab.screenshot != nil else {
-            // Remove screenshot from image store so we can use favicon
-            // when a screenshot isn't available for the associated tab url
-            removeScreenshot(tab: tab)
-            return
-        }
-        storeScreenshot(tab: tab)
-    }
-
-    func storeScreenshot(tab: Tab) {
-        store.preserveScreenshot(forTab: tab)
-        storeChanges()
-    }
-
-    func removeScreenshot(tab: Tab) {
-        store.removeScreenshot(forTab: tab)
-        storeChanges()
-    }
-
     // MARK: - Private
     @objc
     private func blockPopUpDidChange() {
@@ -837,7 +807,7 @@ class LegacyTabManager: NSObject, FeatureFlaggable, TabManager, TabEventHandler 
         if !isPrivate, featureFlags.isFeatureEnabled(.inactiveTabs, checking: .buildAndUser) {
             // only use active tabs as viable tabs
             // we cannot use recentlyAccessedNormalTabs as this is filtering for sponsored and sorting tabs
-            return InactiveTabViewModel.getActiveEligibleTabsFrom(normalTabs, profile: profile)
+            return LegacyInactiveTabViewModel.getActiveEligibleTabsFrom(normalTabs, profile: profile)
         } else {
             return isPrivate ? privateTabs : normalTabs
         }
@@ -939,10 +909,10 @@ class LegacyTabManager: NSObject, FeatureFlaggable, TabManager, TabEventHandler 
     // MARK: - Start at Home
 
     /// Public interface for checking whether the StartAtHome Feature should run.
-    func startAtHomeCheck() {
+    func startAtHomeCheck() -> Bool {
         let startAtHomeManager = StartAtHomeHelper(prefs: profile.prefs, isRestoringTabs: isRestoringTabs)
 
-        guard !startAtHomeManager.shouldSkipStartHome else { return }
+        guard !startAtHomeManager.shouldSkipStartHome else { return false }
 
         if startAtHomeManager.shouldStartAtHome() {
             let wasLastSessionPrivate = selectedTab?.isPrivate ?? false
@@ -957,7 +927,9 @@ class LegacyTabManager: NSObject, FeatureFlaggable, TabManager, TabEventHandler 
                        level: .debug,
                        category: .tabs)
             selectTab(tabToSelect)
+            return true
         }
+        return false
     }
 
     /// Provides a tab on which to open if the start at home feature is enabled. This tab
@@ -1038,30 +1010,5 @@ extension LegacyTabManager: WKNavigationDelegate {
                 tab.consecutiveCrashes = 0
             }
         }
-    }
-}
-
-// MARK: - Test cases helpers
-extension LegacyTabManager {
-    func testRemoveAll() {
-        assert(AppConstants.isRunningTest)
-        if !AppConstants.isRunningTest {
-            logger.log("This method was used outside of tests!",
-                       level: .warning,
-                       category: .tabs)
-        }
-
-        removeTabs(self.tabs)
-    }
-
-    func testClearArchive() {
-        assert(AppConstants.isRunningTest)
-        if !AppConstants.isRunningTest {
-            logger.log("This method was used outside of tests!",
-                       level: .warning,
-                       category: .tabs)
-        }
-
-        store.clearArchive()
     }
 }

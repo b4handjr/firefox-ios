@@ -18,7 +18,9 @@ import ComponentLibrary
 class BrowserViewController: UIViewController,
                              SearchBarLocationProvider,
                              Themeable,
-                             LibraryPanelDelegate {
+                             LibraryPanelDelegate,
+                             RecentlyClosedPanelDelegate,
+                             QRCodeViewControllerDelegate {
     private enum UX {
         static let ShowHeaderTapAreaHeight: CGFloat = 32
         static let ActionSheetTitleMaxLength = 120
@@ -36,7 +38,6 @@ class BrowserViewController: UIViewController,
     weak var browserDelegate: BrowserDelegate?
     weak var navigationHandler: BrowserNavigationHandler?
 
-    var libraryViewController: LibraryViewController?
     var urlBar: URLBarView!
     var urlBarHeightConstraint: Constraint!
     var clipboardBarDisplayHandler: ClipboardBarDisplayHandler?
@@ -53,11 +54,13 @@ class BrowserViewController: UIViewController,
     var urlFromAnotherApp: UrlToOpenModel?
     var isCrashAlertShowing = false
     var currentMiddleButtonState: MiddleButtonState?
+    var didStartAtHome = false
     var openedUrlFromExternalSource = false
     var passBookHelper: OpenPassBookHelper?
     var overlayManager: OverlayModeManager
     var appAuthenticator: AppAuthenticationProtocol
     var contextHintVC: ContextualHintViewController
+    private var backgroundTabLoader: DefaultBackgroundTabLoader
 
     // popover rotation handling
     var displayedPopoverController: UIViewController?
@@ -184,6 +187,7 @@ class BrowserViewController: UIViewController,
         let contextualViewProvider = ContextualHintViewProvider(forHintType: .toolbarLocation,
                                                                 with: profile)
         self.contextHintVC = ContextualHintViewController(with: contextualViewProvider)
+        self.backgroundTabLoader = DefaultBackgroundTabLoader(tabQueue: profile.queue)
         super.init(nibName: nil, bundle: nil)
         didInit()
     }
@@ -229,19 +233,12 @@ class BrowserViewController: UIViewController,
 
     @objc
     func openTabNotification(notification: Notification) {
+        // Remove this notification only used for debug settings with FXIOS-7550
         guard let openTabObject = notification.object as? OpenTabNotificationObject else {
             return
         }
 
         switch openTabObject.type {
-        case .loadQueuedTabs(let urls):
-            loadQueuedTabs(receivedURLs: urls)
-        case .openNewTab:
-            openBlankNewTab(focusLocationField: true)
-        case .openSearchNewTab(let searchTerm):
-            openSearchNewTab(searchTerm)
-        case .switchToTabForURLOrOpen(let url):
-            switchToTabForURLOrOpen(url)
         case .debugOption(let numberOfTabs, let url):
             debugOpen(numberOfNewTabs: numberOfTabs, at: url)
         }
@@ -422,13 +419,13 @@ class BrowserViewController: UIViewController,
             urlBar.locationView.tabDidChangeContentBlocking(tab)
         }
 
-        tabManager.startAtHomeCheck()
+        _ = tabManager.startAtHomeCheck()
         updateWallpaperMetadata()
 
         // When, for example, you "Load in Background" via the share sheet, the tab is added to `Profile`'s `TabQueue`.
-        // So, we delay five seconds because we need to wait for `Profile` to be initialized and setup for use.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
-            self?.loadQueuedTabs()
+        // Make sure that our startup flow is completed and the Profile has been sync'd (at least once) before we load.
+        AppEventQueue.wait(for: [.startupFlowComplete, .profileSyncing, .tabRestoration]) { [weak self] in
+            self?.backgroundTabLoader.loadBackgroundTabs()
         }
     }
 
@@ -486,6 +483,9 @@ class BrowserViewController: UIViewController,
         profile.syncManager.updateCreditCardAutofillStatus(value: autofillCreditCardStatus)
         // Credit card initial setup telemetry
         creditCardInitialSetupTelemetry()
+
+        // Send settings telemetry for Fakespot
+        FakespotUtils().addSettingTelemetry()
     }
 
     private func setupAccessibleActions() {
@@ -633,7 +633,7 @@ class BrowserViewController: UIViewController,
 
     private func prepareURLOnboardingContextualHint() {
         guard contextHintVC.shouldPresentHint(),
-              featureFlags.isFeatureEnabled(.contextualHintForToolbar, checking: .buildOnly)
+              featureFlags.isFeatureEnabled(.isToolbarCFREnabled, checking: .buildOnly)
         else { return }
 
         contextHintVC.configure(
@@ -655,11 +655,6 @@ class BrowserViewController: UIViewController,
     override func viewWillDisappear(_ animated: Bool) {
         screenshotHelper.viewIsVisible = false
         super.viewWillDisappear(animated)
-    }
-
-    override func viewWillLayoutSubviews() {
-        super.viewWillLayoutSubviews()
-        adjustURLBarHeightBasedOnLocationViewHeight()
     }
 
     override func viewDidLayoutSubviews() {
@@ -842,86 +837,6 @@ class BrowserViewController: UIViewController,
         overKeyboardContainer.addKeyboardSpacer(spacerHeight: spacerHeight)
     }
 
-    /// Used for dynamic type height adjustment
-    private func adjustURLBarHeightBasedOnLocationViewHeight() {
-        // Make sure that we have a height to actually base our calculations on
-        guard urlBar.locationContainer.bounds.height != 0 else { return }
-        let locationViewHeight = urlBar.locationView.bounds.height
-        let padding: CGFloat = 12
-        let heightWithPadding = locationViewHeight + padding
-
-        // Adjustment for landscape on the urlbar
-        // need to account for inset and remove it when keyboard is showing
-        let showToolBar = shouldShowToolbarForTraitCollection(traitCollection)
-        let isKeyboardShowing = keyboardState != nil && keyboardState?.intersectionHeightForView(view) != 0
-        if !showToolBar && isBottomSearchBar && !isKeyboardShowing {
-            overKeyboardContainer.addBottomInsetSpacer(spacerHeight: UIConstants.BottomInset)
-        } else if !showToolBar, zoomPageBar != nil {
-            overKeyboardContainer.addBottomInsetSpacer(spacerHeight: UIConstants.BottomInset)
-        } else {
-            overKeyboardContainer.removeBottomInsetSpacer()
-        }
-
-        // We have to deactivate the original constraint, and remake the constraint
-        // or else funky conflicts happen
-        urlBarHeightConstraint.deactivate()
-        urlBar.snp.makeConstraints { make in
-            let height = heightWithPadding > UIConstants.TopToolbarHeightMax ? UIConstants.TopToolbarHeight : heightWithPadding
-            urlBarHeightConstraint = make.height.equalTo(height).constraint
-        }
-    }
-
-    // MARK: - Tabs Queue
-
-    func loadQueuedTabs(receivedURLs: [URL]? = nil) {
-        // Chain off of a trivial deferred in order to run on the background queue.
-        succeed().upon { res in
-            self.dequeueQueuedTabs(receivedURLs: receivedURLs ?? [])
-        }
-    }
-
-    fileprivate func dequeueQueuedTabs(receivedURLs: [URL]) {
-        ensureBackgroundThread { [weak self] in
-            guard let self = self else { return }
-
-            self.profile.queue.getQueuedTabs() >>== { cursor in
-                // This assumes that the DB returns rows in some kind of sane order.
-                // It does in practice, so WFM.
-                let cursorCount = cursor.count
-                if cursorCount > 0 {
-                    // Filter out any tabs received by a push notification to prevent dupes.
-                    let urls = cursor.compactMap { $0?.url.asURL }.filter { !receivedURLs.contains($0) }
-                    if !urls.isEmpty {
-                        DispatchQueue.main.async {
-                            let shouldSelectTab = !self.overlayManager.inOverlayMode
-                            self.tabManager.addTabsForURLs(urls, zombie: false, shouldSelectTab: shouldSelectTab)
-                        }
-                    }
-
-                    // Clear *after* making an attempt to open. We're making a bet that
-                    // it's better to run the risk of perhaps opening twice on a crash,
-                    // rather than losing data.
-                    self.profile.queue.clearQueuedTabs()
-                }
-
-                // Then, open any received URLs from push notifications.
-                if !receivedURLs.isEmpty {
-                    DispatchQueue.main.async {
-                        self.tabManager.addTabsForURLs(receivedURLs, zombie: false)
-                    }
-                }
-
-                if !receivedURLs.isEmpty || cursorCount > 0 {
-                    // Because the notification service runs as a separate process
-                    // we need to make sure that our account manager picks up any persisted state
-                    // the notification services persisted.
-                    self.profile.rustFxA.accountManager.peek()?.resetPersistedAccount()
-                    self.profile.rustFxA.accountManager.peek()?.deviceConstellation()?.refreshState()
-                }
-            }
-        }
-    }
-
     // Because crashedLastLaunch is sticky, it does not get reset, we need to remember its
     // value so that we do not keep asking the user to restore their tabs.
     var displayedRestoreTabsAlert = false
@@ -931,10 +846,6 @@ class BrowserViewController: UIViewController,
     }
 
     fileprivate func showRestoreTabsAlert() {
-        guard tabManager.hasTabsToRestoreAtStartup() else {
-            tabManager.selectTab(tabManager.addTab())
-            return
-        }
         let alert = UIAlertController.restoreTabsAlert(
             okayCallback: { _ in
                 let extra = [TelemetryWrapper.EventExtraKey.isRestoreTabsStarted.rawValue: true]
@@ -954,6 +865,7 @@ class BrowserViewController: UIViewController,
                 self.isCrashAlertShowing = false
                 self.tabManager.selectTab(self.tabManager.addTab())
                 self.openUrlAfterRestore()
+                AppEventQueue.signal(event: .tabRestoration)
             }
         )
         self.present(alert, animated: true, completion: nil)
@@ -1066,36 +978,9 @@ class BrowserViewController: UIViewController,
     }
 
     func showLibrary(panel: LibraryPanelType) {
-        if CoordinatorFlagManager.isLibraryCoordinatorEnabled {
-            DispatchQueue.main.async {
-                self.navigationHandler?.show(homepanelSection: panel.homepanelSection)
-            }
-        } else {
-            self.showLegacyLibrary(panel: panel)
+        DispatchQueue.main.async {
+            self.navigationHandler?.show(homepanelSection: panel.homepanelSection)
         }
-    }
-
-    func showLegacyLibrary(panel: LibraryPanelType? = nil) {
-        if let presentedViewController = self.presentedViewController {
-            presentedViewController.dismiss(animated: true, completion: nil)
-        }
-
-        // We should not set libraryViewController to nil because the library panel losses the currentState
-        let libraryViewController = self.libraryViewController ?? LibraryViewController(profile: profile, tabManager: tabManager)
-        libraryViewController.delegate = self
-        self.libraryViewController = libraryViewController
-
-        libraryViewController.setupOpenPanel(panelType: panel ?? . bookmarks)
-
-        // Reset history panel pagination to get latest history visit
-        if let historyPanel = libraryViewController.viewModel.panelDescriptors.first(where: {$0.panelType == .history}),
-           let vcPanel = historyPanel.viewController as? HistoryPanel {
-            vcPanel.viewModel.shouldResetHistory = true
-        }
-
-        let controller: DismissableNavigationViewController
-        controller = DismissableNavigationViewController(rootViewController: libraryViewController)
-        self.present(controller, animated: true, completion: nil)
     }
 
     fileprivate func createSearchControllerIfNeeded() {
@@ -1672,7 +1557,7 @@ class BrowserViewController: UIViewController,
                 urlBar.locationView.tabDidChangeContentBlocking(tab)
             }
 
-            if (!InternalURL.isValid(url: url) || url.isReaderModeURL), !url.isFileURL {
+            if (!InternalURL.isValid(url: url) || url.isReaderModeURL) && !url.isFileURL {
                 postLocationChangeNotificationForTab(tab, navigation: navigation)
                 tab.readabilityResult = nil
                 webView.evaluateJavascriptInDefaultContentWorld("\(ReaderModeNamespace).checkReadability()")
@@ -1807,29 +1692,15 @@ class BrowserViewController: UIViewController,
             case .deviceOwnerAuthenticated:
                 // Note: Since we are injecting card info, we pass on the frame
                 // for special iframe cases
-                if CoordinatorFlagManager.isCredentialAutofillCoordinatorEnabled {
-                    self.navigationHandler?.showCreditCardAutofill(creditCard: nil,
-                                                                   decryptedCard: nil,
-                                                                   viewType: .selectSavedCard,
-                                                                   frame: frame,
-                                                                   alertContainer: self.contentContainer)
-                } else {
-                    self.showBottomSheetCardViewController(creditCard: nil,
-                                                           decryptedCard: nil,
-                                                           viewType: .selectSavedCard,
-                                                           frame: frame)
-                }
+                self.navigationHandler?.showCreditCardAutofill(creditCard: nil,
+                                                               decryptedCard: nil,
+                                                               viewType: .selectSavedCard,
+                                                               frame: frame,
+                                                               alertContainer: self.contentContainer)
             case .deviceOwnerFailed:
                 break // Keep showing bvc
             case .passCodeRequired:
-                if CoordinatorFlagManager.isCredentialAutofillCoordinatorEnabled {
-                    self.navigationHandler?.showRequiredPassCode()
-                } else {
-                    let passcodeViewController = DevicePasscodeRequiredViewController()
-                    passcodeViewController.profile = self.profile
-                    self.navigationController?.pushViewController(passcodeViewController,
-                                                                  animated: true)
-                }
+                self.navigationHandler?.showRequiredPassCode()
             }
         }
     }
@@ -1839,17 +1710,11 @@ class BrowserViewController: UIViewController,
             existingCard, error in
             guard let existingCard = existingCard else {
                 DispatchQueue.main.async {
-                    if CoordinatorFlagManager.isCredentialAutofillCoordinatorEnabled {
-                        self.navigationHandler?.showCreditCardAutofill(creditCard: nil,
-                                                                       decryptedCard: fieldValues,
-                                                                       viewType: .save,
-                                                                       frame: nil,
-                                                                       alertContainer: self.contentContainer)
-                    } else {
-                        self.showBottomSheetCardViewController(creditCard: nil,
-                                                               decryptedCard: fieldValues,
-                                                               viewType: .save)
-                    }
+                    self.navigationHandler?.showCreditCardAutofill(creditCard: nil,
+                                                                   decryptedCard: fieldValues,
+                                                                   viewType: .save,
+                                                                   frame: nil,
+                                                                   alertContainer: self.contentContainer)
                 }
                 return
             }
@@ -1857,17 +1722,11 @@ class BrowserViewController: UIViewController,
             // card already saved should update if any of its other values are different
             if !fieldValues.isEqualToCreditCard(creditCard: existingCard) {
                 DispatchQueue.main.async {
-                    if CoordinatorFlagManager.isCredentialAutofillCoordinatorEnabled {
-                        self.navigationHandler?.showCreditCardAutofill(creditCard: existingCard,
-                                                                       decryptedCard: fieldValues,
-                                                                       viewType: .update,
-                                                                       frame: nil,
-                                                                       alertContainer: self.contentContainer)
-                    } else {
-                        self.showBottomSheetCardViewController(creditCard: existingCard,
-                                                               decryptedCard: fieldValues,
-                                                               viewType: .update)
-                    }
+                    self.navigationHandler?.showCreditCardAutofill(creditCard: existingCard,
+                                                                   decryptedCard: fieldValues,
+                                                                   viewType: .update,
+                                                                   frame: nil,
+                                                                   alertContainer: self.contentContainer)
                 }
             }
         }
@@ -1923,27 +1782,19 @@ class BrowserViewController: UIViewController,
         })
         self.show(toast: toast)
     }
-}
 
-extension BrowserViewController: ClipboardBarDisplayHandlerDelegate {
-    func shouldDisplay(clipBoardURL url: URL) {
-        let viewModel = ButtonToastViewModel(labelText: .GoToCopiedLink,
-                                             descriptionText: url.absoluteDisplayString,
-                                             buttonText: .GoButtonTittle)
-        let toast = ButtonToast(viewModel: viewModel,
-                                theme: themeManager.currentTheme,
-                                completion: { [weak self] buttonPressed in
-            if buttonPressed {
-                let isPrivate = self?.tabManager.selectedTab?.isPrivate ?? false
-                self?.openURLInNewTab(url, isPrivate: isPrivate)
-            }
-        })
-        clipboardBarDisplayHandler?.clipboardToast = toast
-        show(toast: toast, duration: ClipboardBarDisplayHandler.UX.toastDelay)
+    // MARK: - RecentlyClosedPanelDelegate
+
+    func openRecentlyClosedSiteInSameTab(_ url: URL) {
+        tabTrayOpenRecentlyClosedTab(url)
     }
-}
 
-extension BrowserViewController: QRCodeViewControllerDelegate {
+    func openRecentlyClosedSiteInNewTab(_ url: URL, isPrivate: Bool) {
+        tabManager.selectTab(tabManager.addTab(URLRequest(url: url)))
+    }
+
+    // MARK: - QRCodeViewControllerDelegate
+
     func didScanQRCodeWithURL(_ url: URL) {
         guard let tab = tabManager.selectedTab else { return }
         finishEditingAndSubmit(url, visitType: VisitType.typed, forTab: tab)
@@ -1969,6 +1820,24 @@ extension BrowserViewController: QRCodeViewControllerDelegate {
         default:
             defaultAction()
         }
+    }
+}
+
+extension BrowserViewController: ClipboardBarDisplayHandlerDelegate {
+    func shouldDisplay(clipBoardURL url: URL) {
+        let viewModel = ButtonToastViewModel(labelText: .GoToCopiedLink,
+                                             descriptionText: url.absoluteDisplayString,
+                                             buttonText: .GoButtonTittle)
+        let toast = ButtonToast(viewModel: viewModel,
+                                theme: themeManager.currentTheme,
+                                completion: { [weak self] buttonPressed in
+            if buttonPressed {
+                let isPrivate = self?.tabManager.selectedTab?.isPrivate ?? false
+                self?.openURLInNewTab(url, isPrivate: isPrivate)
+            }
+        })
+        clipboardBarDisplayHandler?.clipboardToast = toast
+        show(toast: toast, duration: ClipboardBarDisplayHandler.UX.toastDelay)
     }
 }
 
@@ -2106,17 +1975,6 @@ extension BrowserViewController: LegacyTabDelegate {
     }
 }
 
-// MARK: - RecentlyClosedPanelDelegate
-extension BrowserViewController: RecentlyClosedPanelDelegate {
-    func openRecentlyClosedSiteInSameTab(_ url: URL) {
-        tabTrayOpenRecentlyClosedTab(url)
-    }
-
-    func openRecentlyClosedSiteInNewTab(_ url: URL, isPrivate: Bool) {
-        tabManager.selectTab(tabManager.addTab(URLRequest(url: url)))
-    }
-}
-
 // MARK: HomePanelDelegate
 extension BrowserViewController: HomePanelDelegate {
     func homePanelDidRequestToOpenLibrary(panel: LibraryPanelType) {
@@ -2163,7 +2021,7 @@ extension BrowserViewController: HomePanelDelegate {
         show(toast: toast)
     }
 
-    func homePanelDidRequestToOpenTabTray(withFocusedTab tabToFocus: Tab?, focusedSegment: LegacyTabTrayViewModel.Segment?) {
+    func homePanelDidRequestToOpenTabTray(withFocusedTab tabToFocus: Tab?, focusedSegment: TabTrayPanelType?) {
         showTabTray(withFocusOnUnselectedTab: tabToFocus, focusedSegment: focusedSegment)
     }
 
@@ -2320,6 +2178,7 @@ extension BrowserViewController: TabManagerDelegate {
     }
 
     func tabManagerDidRestoreTabs(_ tabManager: TabManager) {
+        didStartAtHome = tabManager.startAtHomeCheck()
         updateTabCountUsingTabManager(tabManager)
         openUrlAfterRestore()
     }
@@ -2389,72 +2248,6 @@ extension BrowserViewController: UIAdaptivePresentationControllerDelegate {
     // not as a full-screen modal, which is the default on compact device classes.
     func adaptivePresentationStyle(for controller: UIPresentationController, traitCollection: UITraitCollection) -> UIModalPresentationStyle {
         return .none
-    }
-}
-
-extension BrowserViewController {
-    public func showBottomSheetCardViewController(creditCard: CreditCard?,
-                                                  decryptedCard: UnencryptedCreditCardFields?,
-                                                  viewType state: CreditCardBottomSheetState,
-                                                  frame: WKFrameInfo? = nil) {
-        let creditCardControllerViewModel = CreditCardBottomSheetViewModel(profile: profile,
-                                                                           creditCard: creditCard,
-                                                                           decryptedCreditCard: decryptedCard,
-                                                                           state: state)
-        let viewController = CreditCardBottomSheetViewController(viewModel: creditCardControllerViewModel)
-        viewController.didTapYesClosure = { error in
-            if let error = error {
-                SimpleToast().showAlertWithText(error.localizedDescription,
-                                                bottomContainer: self.contentContainer,
-                                                theme: self.themeManager.currentTheme)
-            } else {
-                // Save a card telemetry
-                if state == .save {
-                    TelemetryWrapper.recordEvent(category: .action,
-                                                 method: .tap,
-                                                 object: .creditCardSavePromptCreate)
-                }
-
-                // Save or update a card toast message
-                let saveSuccessMessage: String = .CreditCard.RememberCreditCard.CreditCardSaveSuccessToastMessage
-                let updateSuccessMessage: String = .CreditCard.UpdateCreditCard.CreditCardUpdateSuccessToastMessage
-                let toastMessage: String = state == .save ? saveSuccessMessage : updateSuccessMessage
-                SimpleToast().showAlertWithText(toastMessage,
-                                                bottomContainer: self.contentContainer,
-                                                theme: self.themeManager.currentTheme)
-            }
-        }
-
-        viewController.didTapManageCardsClosure = {
-            self.showCreditCardSettings()
-        }
-
-        viewController.didSelectCreditCardToFill = { [unowned self] plainTextCard in
-            guard let currentTab = self.tabManager.selectedTab else {
-                return
-            }
-            CreditCardHelper.injectCardInfo(logger: self.logger,
-                                            card: plainTextCard,
-                                            tab: currentTab,
-                                            frame: frame) { error in
-                guard let error = error else {
-                    return
-                }
-                self.logger.log("Credit card bottom sheet injection \(error)",
-                                level: .debug,
-                                category: .webview)
-            }
-        }
-
-        var bottomSheetViewModel = BottomSheetViewModel(closeButtonA11yLabel: .CloseButtonTitle)
-        bottomSheetViewModel.shouldDismissForTapOutside = false
-
-        let bottomSheetVC = BottomSheetViewController(
-            viewModel: bottomSheetViewModel,
-            childViewController: viewController
-        )
-
-        self.present(bottomSheetVC, animated: true, completion: nil)
     }
 }
 
@@ -2711,7 +2504,7 @@ extension BrowserViewController: TabTrayDelegate {
 
     func tabTrayOpenRecentlyClosedTab(_ url: URL) {
         guard let tab = self.tabManager.selectedTab else { return }
-        self.finishEditingAndSubmit(url, visitType: .recentlyClosed, forTab: tab)
+        self.finishEditingAndSubmit(url, visitType: .link, forTab: tab)
     }
 
     // This function animates and resets the tab chrome transforms when

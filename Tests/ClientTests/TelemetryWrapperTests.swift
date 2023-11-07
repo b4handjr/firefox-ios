@@ -328,11 +328,6 @@ class TelemetryWrapperTests: XCTestCase {
         testEventMetricRecordingSuccess(metric: GleanMetrics.Shopping.surfaceOnboardingDisplayed)
     }
 
-    func test_shoppingSettingsComponentOptedOut_GleanIsCalled() {
-        TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .shoppingSettingsCardTurnOffButton)
-        testEventMetricRecordingSuccess(metric: GleanMetrics.Shopping.settingsComponentOptedOut)
-    }
-
     func test_surfaceSettingsExpandClicked_GleanIsCalled() {
         TelemetryWrapper.recordEvent(category: .action, method: .view, object: .shoppingSettingsChevronButton)
         testEventMetricRecordingSuccess(metric: GleanMetrics.Shopping.surfaceSettingsExpandClicked)
@@ -386,6 +381,55 @@ class TelemetryWrapperTests: XCTestCase {
     func test_surfaceReanalyzeClicked_GleanIsCalled() {
         TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .shoppingNeedsAnalysisCardViewPrimaryButton)
         testEventMetricRecordingSuccess(metric: GleanMetrics.Shopping.surfaceReanalyzeClicked)
+    }
+
+    func test_surfaceNoReviewReliabilityAvailable_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .action, method: .navigate, object: .shoppingBottomSheet)
+        testEventMetricRecordingSuccess(metric: GleanMetrics.Shopping.surfaceNoReviewReliabilityAvailable)
+    }
+
+    func test_shoppingShoppingSurfaceStaleAnalysisShown_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .action, method: .view, object: .shoppingSurfaceStaleAnalysisShown)
+        testEventMetricRecordingSuccess(metric: GleanMetrics.Shopping.surfaceStaleAnalysisShown)
+    }
+
+    func test_shoppingNimbusDisabled_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(
+            category: .information,
+            method: .settings,
+            object: .shoppingNimbusDisabled,
+            extras: [
+                TelemetryWrapper.ExtraKey.Shopping.isNimbusDisabled.rawValue: true
+            ])
+        testBoolMetricSuccess(metric: GleanMetrics.ShoppingSettings.nimbusDisabledShopping,
+                              expectedValue: true,
+                              failureMessage: "Should be true")
+    }
+
+    func test_shoppingComponentOptedOut_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(
+            category: .information,
+            method: .settings,
+            object: .shoppingComponentOptedOut,
+            extras: [
+                TelemetryWrapper.ExtraKey.Shopping.isComponentOptedOut.rawValue: true
+            ])
+        testBoolMetricSuccess(metric: GleanMetrics.ShoppingSettings.componentOptedOut,
+                              expectedValue: true,
+                              failureMessage: "Should be true")
+    }
+
+    func test_shoppingUserHasOnboarded_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(
+            category: .information,
+            method: .settings,
+            object: .shoppingUserHasOnboarded,
+            extras: [
+                TelemetryWrapper.ExtraKey.Shopping.isUserOnboarded.rawValue: true
+            ])
+        testBoolMetricSuccess(metric: GleanMetrics.ShoppingSettings.userHasOnboarded,
+                              expectedValue: true,
+                              failureMessage: "Should be true")
     }
 
     // MARK: - Onboarding
@@ -648,6 +692,96 @@ class TelemetryWrapperTests: XCTestCase {
         testCounterMetricRecordingSuccess(metric: GleanMetrics.AppMenu.signIntoSync)
     }
 
+    func test_settingsMenuSync_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .action, method: .open, object: .settingsMenuPasswords)
+        testEventMetricRecordingSuccess(metric: GleanMetrics.SettingsMenu.passwords)
+    }
+
+    func test_appMenuLoginsAndPasswordsTapped_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .action, method: .open, object: .logins)
+        testEventMetricRecordingSuccess(metric: GleanMetrics.AppMenu.passwords)
+    }
+
+    // MARK: Logins and Passwords
+    func test_loginsPasswordDetected_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .information, method: .emailLogin, object: .loginsPasswordDetected)
+        testEventMetricRecordingSuccess(metric: GleanMetrics.Logins.passwordDetected)
+    }
+
+    func test_loginsAutofillPromptShown_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .action, method: .view, object: .loginsAutofillPromptShown)
+        testEventMetricRecordingSuccess(metric: GleanMetrics.Logins.autofillPromptShown)
+    }
+
+    func test_loginsAutofillPromptDismissed_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .action, method: .close, object: .loginsAutofillPromptDismissed)
+        testEventMetricRecordingSuccess(metric: GleanMetrics.Logins.autofillPromptDismissed)
+    }
+
+    func test_loginsAutofilled_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .loginsAutofilled)
+        testEventMetricRecordingSuccess(metric: GleanMetrics.Logins.autofilled)
+    }
+
+    func test_loginsAutofillFailed_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .loginsAutofillFailed)
+        testEventMetricRecordingSuccess(metric: GleanMetrics.Logins.autofillFailed)
+    }
+
+    func test_loginsManagementAddTapped_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .loginsManagementAddTapped)
+        testEventMetricRecordingSuccess(metric: GleanMetrics.Logins.managementAddTapped)
+    }
+
+    func test_loginsManagementLoginsTapped_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .action, method: .tap, object: .loginsManagementLoginsTapped)
+        testEventMetricRecordingSuccess(metric: GleanMetrics.Logins.managementLoginsTapped)
+    }
+
+    func test_loginsModified_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .action,
+                                     method: .change,
+                                     object: .loginsModified)
+
+        testCounterMetricRecordingSuccess(metric: GleanMetrics.Logins.modified)
+    }
+
+    func test_loginsDeleted_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .action,
+                                     method: .delete,
+                                     object: .loginsDeleted)
+
+        testCounterMetricRecordingSuccess(metric: GleanMetrics.Logins.deleted)
+    }
+
+    func test_loginsSaved_GleanIsCalled() {
+        TelemetryWrapper.recordEvent(category: .action,
+                                     method: .add,
+                                     object: .loginsSaved)
+
+        testCounterMetricRecordingSuccess(metric: GleanMetrics.Logins.saved)
+    }
+
+    func test_loginsSyncEnabled_GleanIsCalled() {
+        let isEnabledKey = TelemetryWrapper.EventExtraKey.isLoginSyncEnabled.rawValue
+        let extras = [isEnabledKey: true]
+        TelemetryWrapper.recordEvent(category: .action,
+                                     method: .tap,
+                                     object: .loginsSyncEnabled,
+                                     extras: extras)
+
+        testEventMetricRecordingSuccess(metric: GleanMetrics.Logins.syncEnabled)
+    }
+
+    func test_loginsSavedAll_GleanIsCalled() {
+        let expectedLoginsCount: Int64 = 5
+        let extra = [TelemetryWrapper.EventExtraKey.loginsQuantity.rawValue: expectedLoginsCount]
+        TelemetryWrapper.recordEvent(category: .information, method: .foreground, object: .loginsSavedAll, value: nil, extras: extra)
+
+        testQuantityMetricSuccess(metric: GleanMetrics.Logins.savedAll,
+                                  expectedValue: expectedLoginsCount,
+                                  failureMessage: "Should have \(expectedLoginsCount) logins")
+    }
     // MARK: - Sync
 
     func test_userLoggedOut_GleanIsCalled() {
@@ -706,6 +840,36 @@ class TelemetryWrapperTests: XCTestCase {
         throw XCTSkip("Need to be investigated with #12567 so we can enable again")
 //        TelemetryWrapper.recordEvent(category: .firefoxAccount, method: .view, object: .fxaLoginCompleteWebpage, value: nil)
 //        XCTAssertTrue(try Experiments.shared.createMessageHelper().evalJexl(expression: "'sync.login_completed_view'|eventSum('Days', 1, 0) > 0"))
+    }
+
+    // MARK: - App Errors
+
+    func test_error_largeFileWriteIsCalled() {
+        let eventExtra = [TelemetryWrapper.EventExtraKey.size.rawValue: Int32(1000)]
+        TelemetryWrapper.recordEvent(category: .information,
+                                     method: .error,
+                                     object: .app,
+                                     value: .largeFileWrite,
+                                     extras: eventExtra)
+
+        testEventMetricRecordingSuccess(metric: GleanMetrics.AppErrors.largeFileWrite)
+    }
+    // MARK: - RecordSearch
+    func test_RecordSearch_GleanIsCalledSearchSuggestion() {
+        let extras = [TelemetryWrapper.EventExtraKey.recordSearchLocation.rawValue: "suggestion",
+                      TelemetryWrapper.EventExtraKey.recordSearchEngineID.rawValue: "default"] as [String: Any]
+        TelemetryWrapper.gleanRecordEvent(category: .action,
+                                          method: .tap,
+                                          object: .recordSearch,
+                                          extras: extras)
+    }
+    func test_RecordSearch_GleanIsCalledSearchQuickSearch() {
+        let extras = [TelemetryWrapper.EventExtraKey.recordSearchLocation.rawValue: "quickSearch",
+                      TelemetryWrapper.EventExtraKey.recordSearchEngineID.rawValue: "default"] as [String: Any]
+        TelemetryWrapper.gleanRecordEvent(category: .action,
+                                          method: .tap,
+                                          object: .recordSearch,
+                                          extras: extras)
     }
 }
 

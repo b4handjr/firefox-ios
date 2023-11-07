@@ -294,6 +294,8 @@ class CrashingMockLogger: Logger {
     func setup(sendUsageData: Bool) {}
     func configure(crashManager: CrashManager) {}
     func copyLogsToDocuments() {}
+    func logCustomError(error: Error) {}
+    func deleteCachedLogFiles() {}
 
     var enableCrashOnLastLaunch = false
     var crashedLastLaunch: Bool {

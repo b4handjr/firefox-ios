@@ -18,6 +18,7 @@ class ToolbarTests: BaseTestCase {
         super.tearDown()
     }
 
+    // https://testrail.stage.mozaws.net/index.php?/cases/view/2344428
     /**
      * Tests landscape page navigation enablement with the URL bar with tab switching.
      */
@@ -77,6 +78,7 @@ class ToolbarTests: BaseTestCase {
         XCTAssertTrue(app.buttons[AccessibilityIdentifiers.Toolbar.forwardButton].isEnabled)
     }
 
+    // https://testrail.stage.mozaws.net/index.php?/cases/view/2344430
     func testClearURLTextUsingBackspace() {
         navigator.openURL(website1["url"]!)
         waitUntilPageLoad()
@@ -95,6 +97,7 @@ class ToolbarTests: BaseTestCase {
 
     // Check that after scrolling on a page, the URL bar is hidden. Tapping one on the status bar will reveal the URL bar, tapping again on the status will scroll to the top
     // Skipping for iPad for now, not sure how to implement it there
+    // https://testrail.stage.mozaws.net/index.php?/cases/view/2344431
     func testRevealToolbarWhenTappingOnStatusbar() {
         if !iPad() {
             // Workaround when testing on iPhone. If the orientation is in landscape on iPhone the tests will fail.
@@ -107,7 +110,7 @@ class ToolbarTests: BaseTestCase {
             waitUntilPageLoad()
             mozWaitForElementToExist(app.buttons[AccessibilityIdentifiers.Toolbar.settingsMenuButton], timeout: 10)
             let PageOptionsMenu = app.buttons[AccessibilityIdentifiers.Toolbar.settingsMenuButton]
-            let statusbarElement: XCUIElement = XCUIApplication(bundleIdentifier: "com.apple.springboard").statusBars.firstMatch
+            let statusbarElement: XCUIElement = XCUIApplication(bundleIdentifier: "com.apple.springboard").statusBars.element(boundBy: 1)
             app.swipeUp()
             XCTAssertFalse(PageOptionsMenu.isHittable)
             statusbarElement.tap(force: true)

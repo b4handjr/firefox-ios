@@ -19,7 +19,9 @@ class SettingsCoordinator: BaseCoordinator,
                            PrivacySettingsDelegate,
                            PasswordManagerCoordinatorDelegate,
                            AccountSettingsDelegate,
-                           AboutSettingsDelegate {
+                           AboutSettingsDelegate,
+                           ParentCoordinatorDelegate,
+                           QRCodeNavigationHandler {
     var settingsViewController: AppSettingsScreen
     private let wallpaperManager: WallpaperManagerInterface
     private let profile: Profile
@@ -55,13 +57,21 @@ class SettingsCoordinator: BaseCoordinator,
         }
     }
 
-    override func handle(route: Route) -> Bool {
+    override func canHandle(route: Route) -> Bool {
         switch route {
-        case let .settings(section):
-            start(with: section)
+        case .settings:
             return true
         default:
             return false
+        }
+    }
+
+    override func handle(route: Route) {
+        switch route {
+        case let .settings(section):
+            start(with: section)
+        default:
+            break
         }
     }
 
@@ -97,6 +107,7 @@ class SettingsCoordinator: BaseCoordinator,
                 referringPage: .settings,
                 profile: profile
             )
+            (viewController as? FirefoxAccountSignInViewController)?.qrCodeNavigationHandler = self
             return viewController
 
         case .theme:
@@ -184,6 +195,17 @@ class SettingsCoordinator: BaseCoordinator,
         add(child: passwordCoordinator)
         passwordCoordinator.parentCoordinator = self
         passwordCoordinator.start(with: shouldShowOnboarding)
+    }
+
+    func showQRCode(delegate: QRCodeViewControllerDelegate) {
+        var coordinator: QRCodeCoordinator
+        if let qrCodeCoordinator = childCoordinators.first(where: { $0 is QRCodeCoordinator }) as? QRCodeCoordinator {
+            coordinator = qrCodeCoordinator
+        } else {
+            coordinator = QRCodeCoordinator(parentCoordinator: self, router: router)
+            add(child: coordinator)
+        }
+        coordinator.showQRCode(delegate: delegate)
     }
 
     func didFinishShowingSettings() {
@@ -283,6 +305,7 @@ class SettingsCoordinator: BaseCoordinator,
         let viewController = FirefoxAccountSignInViewController(profile: profile,
                                                                 parentType: .settings,
                                                                 deepLinkParams: fxaParams)
+        viewController.qrCodeNavigationHandler = self
         router.push(viewController)
     }
 
@@ -303,6 +326,7 @@ class SettingsCoordinator: BaseCoordinator,
         let viewController = FirefoxAccountSignInViewController(profile: profile,
                                                                 parentType: .settings,
                                                                 deepLinkParams: fxaParams)
+        viewController.qrCodeNavigationHandler = self
         router.push(viewController)
     }
 
@@ -338,5 +362,11 @@ class SettingsCoordinator: BaseCoordinator,
         viewController.settingsTitle = title
         viewController.url = url
         router.push(viewController)
+    }
+
+    // MARK: - ParentCoordinatorDelegate
+
+    func didFinish(from childCoordinator: Coordinator) {
+        remove(child: childCoordinator)
     }
 }

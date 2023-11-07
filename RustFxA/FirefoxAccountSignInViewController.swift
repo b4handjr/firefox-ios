@@ -37,6 +37,7 @@ class FirefoxAccountSignInViewController: UIViewController, Themeable {
     var notificationCenter: NotificationProtocol
     var themeManager: ThemeManager
     var themeObserver: NSObjectProtocol?
+    weak var qrCodeNavigationHandler: QRCodeNavigationHandler?
 
     /// This variable is used to track parent page that launched this sign in VC.
     /// telemetryObject deduced from parentType initializer is sent with telemetry events on button click
@@ -95,36 +96,24 @@ class FirefoxAccountSignInViewController: UIViewController, Themeable {
         }
     }
 
-    private lazy var scanButton: ResizableButton = .build { button in
-        button.layer.cornerRadius = UX.buttonCornerRadius
+    private lazy var scanButton: PrimaryRoundedButton = .build { button in
+        let viewModel = PrimaryRoundedButtonViewModel(
+            title: .FxASignin_QRScanSignin,
+            a11yIdentifier: AccessibilityIdentifiers.Settings.FirefoxAccount.qrButton,
+            imageTitlePadding: UX.buttonHorizontalInset
+        )
+        button.configure(viewModel: viewModel)
         button.setImage(self.signinSyncQRImage?.tinted(withColor: .white), for: .highlighted)
-        button.setTitle(.FxASignin_QRScanSignin, for: .normal)
-        button.accessibilityIdentifier = AccessibilityIdentifiers.Settings.FirefoxAccount.qrButton
-        button.titleLabel?.font = DefaultDynamicFontHelper.preferredBoldFont(
-            withTextStyle: .callout,
-            size: UX.buttonFontSize)
-
-        let contentPadding = UIEdgeInsets(top: UX.buttonVerticalInset,
-                                          left: UX.buttonHorizontalInset,
-                                          bottom: UX.buttonVerticalInset,
-                                          right: UX.buttonHorizontalInset)
-        button.setInsets(forContentPadding: contentPadding, imageTitlePadding: UX.buttonHorizontalInset)
         button.addTarget(self, action: #selector(self.scanbuttonTapped), for: .touchUpInside)
     }
 
-    private lazy var emailButton: ResizableButton = .build { button in
-        button.layer.cornerRadius = UX.buttonCornerRadius
-        button.setTitle(.FxASignin_EmailSignin, for: .normal)
-        button.accessibilityIdentifier = AccessibilityIdentifiers.Settings.FirefoxAccount.fxaSignInButton
+    private lazy var emailButton: SecondaryRoundedButton = .build { button in
+        let viewModel = SecondaryRoundedButtonViewModel(
+            title: .FxASignin_EmailSignin,
+            a11yIdentifier: AccessibilityIdentifiers.Settings.FirefoxAccount.fxaSignInButton
+        )
+        button.configure(viewModel: viewModel)
         button.addTarget(self, action: #selector(self.emailLoginTapped), for: .touchUpInside)
-        button.titleLabel?.adjustsFontForContentSizeCategory = true
-        button.titleLabel?.font = DefaultDynamicFontHelper.preferredBoldFont(
-            withTextStyle: .callout,
-            size: UX.buttonFontSize)
-        button.contentEdgeInsets = UIEdgeInsets(top: UX.buttonVerticalInset,
-                                                left: UX.buttonHorizontalInset,
-                                                bottom: UX.buttonVerticalInset,
-                                                right: UX.buttonHorizontalInset)
     }
 
     // MARK: - Inits
@@ -241,12 +230,12 @@ class FirefoxAccountSignInViewController: UIViewController, Themeable {
         view.backgroundColor = colors.layer1
         qrSignInLabel.textColor = colors.textPrimary
         instructionsLabel.textColor = colors.textPrimary
-        scanButton.backgroundColor = colors.actionPrimary
-        scanButton.setTitleColor(colors.textInverted, for: .normal)
+
+        let theme = themeManager.currentTheme
+        scanButton.applyTheme(theme: theme)
+        emailButton.applyTheme(theme: theme)
         scanButton.setImage(signinSyncQRImage?
             .tinted(withColor: colors.textInverted), for: .normal)
-        emailButton.backgroundColor = colors.actionSecondary
-        emailButton.setTitleColor(colors.textSecondaryAction, for: .normal)
     }
 
     // MARK: Button Tap Functions
@@ -278,7 +267,7 @@ class FirefoxAccountSignInViewController: UIViewController, Themeable {
     }
 }
 
-// MARK: QRCodeViewControllerDelegate Functions
+// MARK: - QRCodeViewControllerDelegate Functions
 extension FirefoxAccountSignInViewController: QRCodeViewControllerDelegate {
     func didScanQRCodeWithURL(_ url: URL) {
         let shouldAskForPermission = OnboardingNotificationCardHelper().shouldAskForNotificationsPermission(telemetryObj: telemetryObject)

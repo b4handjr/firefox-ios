@@ -43,7 +43,7 @@ class TopTabsViewController: UIViewController, Themeable, Notifiable {
     lazy var collectionView: UICollectionView = {
         let collectionView = UICollectionView(frame: CGRect.zero, collectionViewLayout: TopTabsViewLayout())
         collectionView.register(cellType: TopTabCell.self)
-        collectionView.register(cellType: InactiveTabCell.self)
+        collectionView.register(cellType: LegacyInactiveTabCell.self)
         collectionView.showsVerticalScrollIndicator = false
         collectionView.showsHorizontalScrollIndicator = false
         collectionView.bounces = false
@@ -114,6 +114,11 @@ class TopTabsViewController: UIViewController, Themeable, Notifiable {
 
     required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        collectionView.collectionViewLayout.invalidateLayout()
     }
 
     override func viewWillAppear(_ animated: Bool) {

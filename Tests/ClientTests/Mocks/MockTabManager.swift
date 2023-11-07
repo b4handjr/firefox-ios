@@ -93,10 +93,8 @@ class MockTabManager: TabManager {
 
     func restoreTabs(_ forced: Bool) {}
 
-    func startAtHomeCheck() {}
-
-    func hasTabsToRestoreAtStartup() -> Bool {
-        return false
+    func startAtHomeCheck() -> Bool {
+        false
     }
 
     func getTabForUUID(uuid: String) -> Tab? {
@@ -135,8 +133,4 @@ class MockTabManager: TabManager {
                                  didClearTabs: @escaping (_ tabsToRemove: [Tab],
                                                           _ isPrivate: Bool,
                                                           _ previousTabUUID: String) -> Void) {}
-
-    func testRemoveAll() {}
-
-    func testClearArchive() {}
 }

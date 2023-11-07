@@ -20,6 +20,7 @@ class RemoteTabsPanel: UIViewController,
     private(set) var state: RemoteTabsPanelState
     var tableViewController: RemoteTabsTableViewController
     weak var remotePanelDelegate: RemotePanelDelegate?
+    weak var navigationHandler: SyncedTabsNavigationHandler?
 
     var themeManager: ThemeManager
     var themeObserver: NSObjectProtocol?
@@ -52,7 +53,19 @@ class RemoteTabsPanel: UIViewController,
         }
     }
 
+    // MARK: - Actions
+
+    func tableViewControllerDidPullToRefresh() {
+        refreshTabs()
+    }
+
     // MARK: - Internal Utilities
+
+    private func refreshTabs() {
+        // Ensure we do not already have a refresh in progress
+        guard state.refreshState != .refreshing else { return }
+        store.dispatch(RemoteTabsPanelAction.refreshTabs)
+    }
 
     private func observeNotifications() {
         // TODO: State to be provided by forthcoming Redux updates. TBD.
@@ -72,9 +85,7 @@ class RemoteTabsPanel: UIViewController,
     func notificationReceived(_ notification: Notification) {
         let name = notification.name
         if name == .FirefoxAccountChanged || name == .ProfileDidFinishSyncing {
-            ensureMainThread {
-                self.tableViewController.refreshTabs(state: self.state)
-            }
+            refreshTabs()
         }
     }
 
@@ -85,11 +96,17 @@ class RemoteTabsPanel: UIViewController,
 
         listenForThemeChange(view)
         setupLayout()
-        applyTheme()
         subscribeRedux()
+        applyTheme()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        refreshTabs()
     }
 
     private func setupLayout() {
+        navigationController?.setNavigationBarHidden(true, animated: false)
         tableViewController.view.translatesAutoresizingMaskIntoConstraints = false
         addChild(tableViewController)
         view.addSubview(tableViewController.view)
@@ -107,15 +124,9 @@ class RemoteTabsPanel: UIViewController,
         view.backgroundColor = themeManager.currentTheme.colors.layer4
         tableViewController.tableView.backgroundColor =  themeManager.currentTheme.colors.layer3
         tableViewController.tableView.separatorColor = themeManager.currentTheme.colors.borderPrimary
-        tableViewController.tableView.reloadData()
-        tableViewController.refreshTabs(state: state)
     }
 
     // MARK: - Redux
-
-    private func forceRefreshTabs() {
-        tableViewController.refreshTabs(state: state, updateCache: true)
-    }
 
     private func subscribeRedux() {
         guard isReduxIntegrationEnabled else { return }
@@ -127,8 +138,12 @@ class RemoteTabsPanel: UIViewController,
     }
 
     func newState(state: RemoteTabsPanelState) {
-        self.state = state
-        tableViewController.newState(state: state)
+        ensureMainThread { [weak self] in
+            guard let self else { return }
+
+            self.state = state
+            tableViewController.newState(state: state)
+        }
     }
 
     // MARK: - RemoteTabsClientAndTabsDataSourceDelegate

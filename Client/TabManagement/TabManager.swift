@@ -42,8 +42,7 @@ protocol TabManager: AnyObject {
     func moveTab(isPrivate privateMode: Bool, fromIndex visibleFromIndex: Int, toIndex visibleToIndex: Int)
     func preserveTabs()
     func restoreTabs(_ forced: Bool)
-    func startAtHomeCheck()
-    func hasTabsToRestoreAtStartup() -> Bool
+    func startAtHomeCheck() -> Bool
     func getTabForUUID(uuid: String) -> Tab?
     func getTabForURL(_ url: URL) -> Tab?
     func expireSnackbars()
@@ -62,8 +61,6 @@ protocol TabManager: AnyObject {
                                  didClearTabs: @escaping (_ tabsToRemove: [Tab],
                                                           _ isPrivate: Bool,
                                                           _ previousTabUUID: String) -> Void)
-    func testRemoveAll()
-    func testClearArchive()
 }
 
 extension TabManager {
