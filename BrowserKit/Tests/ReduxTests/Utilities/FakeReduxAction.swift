@@ -5,7 +5,9 @@
 import Foundation
 
 @testable import Redux
+/*
 enum FakeReduxAction: Action {
+
     // User action
     case requestInitialValue
     case increaseCounter
@@ -15,4 +17,6 @@ enum FakeReduxAction: Action {
     case initialValueLoaded(Int)
     case counterIncreased(Int)
     case counterDecreased(Int)
+    case setPrivateModeTo(Bool)
 }
+*/

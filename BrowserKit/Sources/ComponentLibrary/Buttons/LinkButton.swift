@@ -5,41 +5,65 @@
 import Common
 import UIKit
 
-public class LinkButton: ResizableButton, ThemeApplicable {
-    private struct UX {
-        static let buttonCornerRadius: CGFloat = 13
-    }
+open class LinkButton: UIButton, ThemeApplicable {
+    private var foregroundColorNormal: UIColor = .clear
+    private var foregroundColorHighlighted: UIColor = .clear
+    private var backgroundColorNormal: UIColor = .clear
 
     override init(frame: CGRect) {
         super.init(frame: frame)
 
         configuration = UIButton.Configuration.plain()
-        backgroundColor = .clear
-        titleLabel?.adjustsFontForContentSizeCategory = true
     }
 
-    public func configure(viewModel: LinkButtonViewModel) {
-        accessibilityIdentifier = viewModel.a11yIdentifier
-        setTitle(viewModel.title, for: .normal)
-        configuration?.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+    open func configure(viewModel: LinkButtonViewModel) {
+        guard let config = configuration else {
+            return
+        }
+        var updatedConfiguration = config
+
+        updatedConfiguration.title = viewModel.title
+        updatedConfiguration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
             var outgoing = incoming
             outgoing.font = DefaultDynamicFontHelper.preferredFont(withTextStyle: .body,
                                                                    size: viewModel.fontSize)
             return outgoing
         }
-        configuration?.contentInsets = viewModel.contentInsets
+        updatedConfiguration.contentInsets = viewModel.contentInsets
+
+        accessibilityIdentifier = viewModel.a11yIdentifier
         contentHorizontalAlignment = viewModel.contentHorizontalAlignment
+
+        configuration = updatedConfiguration
         layoutIfNeeded()
     }
 
-    required init?(coder aDecoder: NSCoder) {
+    public required init?(coder aDecoder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    override public func updateConfiguration() {
+        guard var updatedConfiguration = configuration else {
+            return
+        }
+
+        switch state {
+        case [.highlighted]:
+            updatedConfiguration.baseForegroundColor = foregroundColorHighlighted
+        default:
+            updatedConfiguration.baseForegroundColor = foregroundColorNormal
+        }
+
+        updatedConfiguration.background.backgroundColor = backgroundColorNormal
+        configuration = updatedConfiguration
     }
 
     // MARK: ThemeApplicable
 
     public func applyTheme(theme: Theme) {
-        setTitleColor(theme.colors.textAccent, for: .normal)
-        setTitleColor(theme.colors.actionPrimaryHover, for: .highlighted)
+        foregroundColorNormal = theme.colors.textAccent
+        foregroundColorHighlighted = theme.colors.actionPrimaryHover
+        backgroundColorNormal = .clear
+        setNeedsUpdateConfiguration()
     }
 }

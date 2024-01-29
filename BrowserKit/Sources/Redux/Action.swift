@@ -6,4 +6,15 @@ import Foundation
 
 /// Are a declarative way of describing a state change. Actions don’t contain any code,
 /// they are consumed by the store and forwarded to reducers. Are used to express intended state changes. 
-public protocol Action {}
+public protocol Action {
+    // TODO: [8188] Update to be non-optional; all Actions must occur within a window.
+    var windowUUID: UUID? { get }
+}
+
+extension Action {
+    func displayString() -> String {
+        let className = String(describing: Self.self)
+        let actionName = String(describing: self).prefix(20)
+        return "\(className).\(actionName)"
+    }
+}

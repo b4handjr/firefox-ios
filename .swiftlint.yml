@@ -1,6 +1,9 @@
 only_rules: # Only enforce these rules, ignore all others
+  - line_length
   - blanket_disable_command
   - class_delegate_protocol
+  - closure_spacing
+  - closure_parameter_position
   - colon
   - comma
   - comment_spacing
@@ -89,6 +92,11 @@ only_rules: # Only enforce these rules, ignore all others
   # - prohibited_super_call
   # - protocol_property_accessors_order
 
+line_length:
+  warning: 125
+  ignores_urls: true
+  ignores_interpolated_strings: true
+
 file_header:
   required_string: |
                     // This Source Code Form is subject to the terms of the Mozilla Public
@@ -101,27 +109,28 @@ analyzer_rules: # Rules run by `swiftlint analyze`
 excluded: # paths to ignore during linting. Takes precedence over `included`.
   - build/
   - .build/
-  - Client/Assets/Search/get_supported_locales.swift
-  - Client/Generated
-  - fastlane/
-  - FxA
-  - FxAClient
-  - Source/ExcludedFolder
-  - Source/ExcludedFile.swift
-  - Storage/ThirdParty/SwiftData.swift
-  - Sync/Generated/Metrics.swift
-  - Storage/Generated/Metrics.swift
-  - ThirdParty
+  - firefox-ios/Client/Assets/Search/get_supported_locales.swift
+  - firefox-ios/Client/Generated
+  - firefox-ios/fastlane/
+  - firefox-ios/FxA
+  - firefox-ios/FxAClient
+  - firefox-ios/Source/ExcludedFolder
+  - firefox-ios/Source/ExcludedFile.swift
+  - firefox-ios/Storage/ThirdParty/SwiftData.swift
+  - firefox-ios/Sync/Generated/Metrics.swift
+  - firefox-ios/Storage/Generated/Metrics.swift
+  - firefox-ios/ThirdParty
   - test-fixtures/tmp
-  - Tests/UITests/
+  - firefox-ios/firefox-ios-tests/Tests/UITests/
   - l10n-screenshots-dd/
   - DerivedData/
   # Package.swift files need a custom header for swift-tools-version
   # so must be excluded due to file_header rule
-  - Package.swift
+  - firefox-ios/Package.swift
   - BrowserKit/Package.swift
-  - Client/ContentBlocker/ContentBlockerGenerator/Package.swift
-  
+  - BrowserKit/.build/
+  - firefox-ios/Client/ContentBlocker/ContentBlockerGenerator/Package.swift
+  - Package.swift 
 
 included:
   - /Users/vagrant/git

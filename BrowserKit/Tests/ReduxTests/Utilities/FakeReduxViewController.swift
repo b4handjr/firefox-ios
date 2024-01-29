@@ -5,21 +5,41 @@
 import UIKit
 
 @testable import Redux
+/*
 class FakeReduxViewController: UIViewController, StoreSubscriber {
     typealias SubscriberStateType = FakeReduxState
 
     var label = UILabel(frame: .zero)
+    var isInPrivateMode = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        subscribeToRedux()
+        view.addSubview(label)
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        unsubscribeFromRedux()
+    }
+
+    // MARK: - Redux
+
+    func subscribeToRedux() {
         store.subscribe(self)
         store.dispatch(FakeReduxAction.requestInitialValue)
-        view.addSubview(label)
+    }
+
+    func unsubscribeFromRedux() {
+        store.unsubscribe(self)
     }
 
     func newState(state: FakeReduxState) {
         label.text = "\(state.counter)"
+        isInPrivateMode = state.isInPrivateMode
     }
+
+    // MARK: - Helper functions
 
     func increaseCounter() {
         store.dispatch(FakeReduxAction.increaseCounter)
@@ -28,4 +48,9 @@ class FakeReduxViewController: UIViewController, StoreSubscriber {
     func decreaseCounter() {
         store.dispatch(FakeReduxAction.decreaseCounter)
     }
+
+    func setPrivateMode(to value: Bool) {
+        store.dispatch(FakeReduxAction.setPrivateModeTo(value))
+    }
 }
+*/

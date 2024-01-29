@@ -73,6 +73,10 @@ public class DefaultCrashManager: CrashManager {
         return appInfo.buildChannel == .beta
     }
 
+    private var shouldEnableTraceProfiling: Bool {
+        return appInfo.buildChannel == .beta
+    }
+
     public init(appInfo: BrowserKitInformation = BrowserKitInformation.shared,
                 sentryWrapper: SentryWrapper = DefaultSentry(),
                 isSimulator: Bool = DeviceInfo.isSimulator()) {
@@ -91,14 +95,16 @@ public class DefaultCrashManager: CrashManager {
 
         sentryWrapper.startWithConfigureOptions(configure: { options in
             options.dsn = dsn
+            if self.shouldEnableTraceProfiling {
+                options.tracesSampleRate = 0.2
+                options.profilesSampleRate = 0.2
+            }
             options.environment = self.environment.rawValue
             options.releaseName = self.releaseName
             options.enableFileIOTracing = false
             options.enableNetworkTracking = false
             options.enableAppHangTracking = self.shouldEnableAppHangTracking
-            if #available(iOS 15.0, *) {
-                options.enableMetricKit = self.shouldEnableMetricKit
-            }
+            options.enableMetricKit = self.shouldEnableMetricKit
             options.enableCaptureFailedRequests = false
             options.enableSwizzling = false
             options.beforeBreadcrumb = { crumb in
@@ -222,7 +228,8 @@ public class DefaultCrashManager: CrashManager {
     }
 
     /// If we have not already for this install, generate a completely random identifier for this device.
-    /// It is stored in the app group so that the same value will be used for both the main application and the app extensions.
+    /// It is stored in the app group so that the same value will be used for both the main application
+    /// and the app extensions.
     private func configureIdentifier() {
         guard let defaults = UserDefaults(suiteName: appInfo.sharedContainerIdentifier),
               defaults.string(forKey: deviceAppHashKey) == nil else { return }

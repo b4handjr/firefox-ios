@@ -19,6 +19,7 @@ stages:
 workflows:
   configure_build_fennec:
     before_run:
+    - 0_detect_standalone_build
     - 1_git_clone_and_post_clone
     - 2_certificate_and_profile
     - 3_provisioning_and_npm_installation
@@ -35,8 +36,9 @@ workflows:
             set -euxo pipefail
             echo "-- build-for-testing --"
             mkdir DerivedData
+
             xcodebuild -resolvePackageDependencies -onlyUsePackageVersionsFromResolvedFile
-            xcodebuild "-project" "/Users/vagrant/git/Client.xcodeproj" "-scheme" "Fennec" -configuration "Fennec" "CODE_SIGNING_ALLOWED=NO" -sdk "iphonesimulator" "-destination" "platform=iOS Simulator,name=iPhone 15,OS=17.0.1" "COMPILER_INDEX_STORE_ENABLE=NO" "build-for-testing" "CODE_SIGN_IDENTITY=" "CODE_SIGNING_REQUIRED=NO" "CODE_SIGNING_ALLOWED=NO" -derivedDataPath "/Users/vagrant/git/DerivedData" | xcpretty | tee xcodebuild_fennec.log
+            xcodebuild "-project" "/Users/vagrant/git/firefox-ios/Client.xcodeproj" "-scheme" "Fennec" -configuration "Fennec" "CODE_SIGNING_ALLOWED=NO" -sdk "iphonesimulator" "-destination" "platform=iOS Simulator,name=iPhone 15,OS=17.2" "COMPILER_INDEX_STORE_ENABLE=NO" "build-for-testing" "CODE_SIGN_IDENTITY=" "CODE_SIGNING_REQUIRED=NO" "CODE_SIGNING_ALLOWED=NO" -derivedDataPath "/Users/vagrant/git/DerivedData" | xcpretty | tee xcodebuild_fennec.log
 
             ls /Users/vagrant/git/DerivedData/Build/Products
             ls /Users/vagrant/git/DerivedData
@@ -44,10 +46,10 @@ workflows:
         run_if: '{{getenv "RUN_UI_TESTS" | eq "Run_UI_Tests"}}'
         timeout: 600
         inputs:
-        - destination: platform=iOS Simulator,name=iPhone 15,OS=17.0.1
+        - destination: platform=iOS Simulator,name=iPhone 15,OS=17.2
         - xcodebuild_options: '"COMPILER_INDEX_STORE_ENABLE=NO"
             "CODE_SIGN_IDENTITY=" "CODE_SIGNING_REQUIRED=NO" "CODE_SIGNING_ALLOWED=NO"'
-        - xctestrun: "/Users/vagrant/git/DerivedData/Build/Products/Fennec_UnitTest_iphonesimulator17.0-arm64.xctestrun"
+        - xctestrun: "/Users/vagrant/git/DerivedData/Build/Products/Fennec_UnitTest_iphonesimulator17.2-arm64.xctestrun"
         - maximum_test_repetitions: 2
     - save-spm-cache@1:
         is_always_run: true
@@ -66,20 +68,20 @@ workflows:
             exec zip -0 -qr "${BITRISE_SOURCE_DIR}/DerivedData.zip" \
             "$BITRISE_SOURCE_DIR/DerivedData/Build/Products/Fennec-iphonesimulator/Client.app" \
             "$BITRISE_SOURCE_DIR/DerivedData/Build/Products/Fennec-iphonesimulator/XCUITests-Runner.app" \
-            "$BITRISE_SOURCE_DIR/Client.xcodeproj" \
-            "$BITRISE_SOURCE_DIR/Tests/SmokeXCUITests.xctestplan" \
-            "$BITRISE_SOURCE_DIR/Tests/Smoketest2.xctestplan" \
-            "$BITRISE_SOURCE_DIR/Tests/Smoketest3.xctestplan" \
-            "$BITRISE_SOURCE_DIR/Tests/Smoketest4.xctestplan" \
+            "$BITRISE_SOURCE_DIR/firefox-ios/Client.xcodeproj" \
+            "$BITRISE_SOURCE_DIR/firefox-ios/firefox-ios-tests/Tests/SmokeXCUITests.xctestplan" \
+            "$BITRISE_SOURCE_DIR/firefox-ios/firefox-ios-tests/Tests/Smoketest2.xctestplan" \
+            "$BITRISE_SOURCE_DIR/firefox-ios/firefox-ios-tests/Tests/Smoketest3.xctestplan" \
+            "$BITRISE_SOURCE_DIR/firefox-ios/firefox-ios-tests/Tests/Smoketest4.xctestplan" \
             "$BITRISE_SOURCE_DIR/xcodebuild.log" \
-            "$BITRISE_SOURCE_DIR/DerivedData/Build/Products/Fennec_SmokeXCUITests_iphonesimulator17.0-arm64.xctestrun" \
-            "$BITRISE_SOURCE_DIR/DerivedData/Build/Products/Fennec_Smoketest2_iphonesimulator17.0-arm64.xctestrun" \
-            "$BITRISE_SOURCE_DIR/DerivedData/Build/Products/Fennec_Smoketest3_iphonesimulator17.0-arm64.xctestrun" \
-            "$BITRISE_SOURCE_DIR/DerivedData/Build/Products/Fennec_Smoketest4_iphonesimulator17.0-arm64.xctestrun" \
+            "$BITRISE_SOURCE_DIR/DerivedData/Build/Products/Fennec_SmokeXCUITests_iphonesimulator17.2-arm64.xctestrun" \
+            "$BITRISE_SOURCE_DIR/DerivedData/Build/Products/Fennec_Smoketest2_iphonesimulator17.2-arm64.xctestrun" \
+            "$BITRISE_SOURCE_DIR/DerivedData/Build/Products/Fennec_Smoketest3_iphonesimulator17.2-arm64.xctestrun" \
+            "$BITRISE_SOURCE_DIR/DerivedData/Build/Products/Fennec_Smoketest4_iphonesimulator17.2-arm64.xctestrun" \
             "$BITRISE_SOURCE_DIR/DerivedData/Build/Products/Fennec-iphonesimulator/" \
-            "$BITRISE_SOURCE_DIR/Tests/UnitTest.xctestplan" \
-            "$BITRISE_SOURCE_DIR/Client/" \
-            "$BITRISE_SOURCE_DIR/Tests/XCUITests"
+            "$BITRISE_SOURCE_DIR/firefox-ios/firefox-ios-tests/Tests/UnitTest.xctestplan" \
+            "$BITRISE_SOURCE_DIR/firefox-ios/Client/" \
+            "$BITRISE_SOURCE_DIR/firefox-ios/firefox-ios-tests/Tests/XCUITests"
     - deploy-to-bitrise-io@2:
         run_if: '{{getenv "RUN_UI_TESTS" | eq "Run_UI_Tests"}}'
         inputs:
@@ -149,10 +151,11 @@ workflows:
         - webhook_url: $WEBHOOK_SLACK_TOKEN_2
     meta:
       bitrise.io:
-        stack: osx-xcode-15.0.x
+        stack: osx-xcode-15.2.x
         machine_type_id: g2-m1.8core
   build_and_test_1_SmokeTest2:
     before_run:
+    - 0_detect_standalone_build
     - 1_git_clone_and_post_clone
     - Decision_to_run_UI_Tests
     steps:
@@ -180,21 +183,22 @@ workflows:
         timeout: 1200
         title: UI Smoketest2
         inputs:
-        - destination: platform=iOS Simulator,name=iPhone 15,OS=17.0.1
+        - destination: platform=iOS Simulator,name=iPhone 15,OS=17.2
         - xcodebuild_options: '"-derivedDataPath" "/Users/vagrant/git/DerivedData"
             "COMPILER_INDEX_STORE_ENABLE=NO" "CODE_SIGN_IDENTITY=" 
             "CODE_SIGNING_REQUIRED=NO" "CODE_SIGNING_ALLOWED=NO"'
-        - xctestrun: "Users/vagrant/git/DerivedData/Build/Products/Fennec_Smoketest2_iphonesimulator17.0-arm64.xctestrun"
+        - xctestrun: "Users/vagrant/git/DerivedData/Build/Products/Fennec_Smoketest2_iphonesimulator17.2-arm64.xctestrun"
     - deploy-to-bitrise-io@2.1.1:
         run_if: '{{getenv "RUN_UI_TESTS" | eq "Run_UI_Tests"}}'
         inputs:
         - pipeline_intermediate_files: '$BITRISE_XCRESULT_PATH:BITRISE_UITESTS_2_XCRESULT_PATH'
     meta:
       bitrise.io:
-        stack: osx-xcode-15.0.x
+        stack: osx-xcode-15.2.x
         machine_type_id: g2-m1.8core
   build_and_test_2_SmokeTest:
     before_run:
+    - 0_detect_standalone_build
     - 1_git_clone_and_post_clone
     - Decision_to_run_UI_Tests
     steps:
@@ -225,21 +229,22 @@ workflows:
         timeout: 1200
         title: UI Smoketest
         inputs:
-        - destination: platform=iOS Simulator,name=iPhone 15,OS=17.0.1
+        - destination: platform=iOS Simulator,name=iPhone 15,OS=17.2
         - xcodebuild_options: '"-derivedDataPath" "/Users/vagrant/git/DerivedData"
             "COMPILER_INDEX_STORE_ENABLE=NO" "CODE_SIGN_IDENTITY=" 
             "CODE_SIGNING_REQUIRED=NO" "CODE_SIGNING_ALLOWED=NO"'
-        - xctestrun: "Users/vagrant/git/DerivedData/Build/Products/Fennec_SmokeXCUITests_iphonesimulator17.0-arm64.xctestrun"
+        - xctestrun: "Users/vagrant/git/DerivedData/Build/Products/Fennec_SmokeXCUITests_iphonesimulator17.2-arm64.xctestrun"
     - deploy-to-bitrise-io@2.1.1:
         run_if: '{{getenv "RUN_UI_TESTS" | eq "Run_UI_Tests"}}'
         inputs:
         - pipeline_intermediate_files: '$BITRISE_XCRESULT_PATH:BITRISE_UITESTS_XCRESULT_PATH'
     meta:
       bitrise.io:
-        stack: osx-xcode-15.0.x
+        stack: osx-xcode-15.2.x
         machine_type_id: g2-m1.8core
   build_and_test_3_SmokeTest3:
     before_run:
+    - 0_detect_standalone_build
     - 1_git_clone_and_post_clone
     - Decision_to_run_UI_Tests
     steps:
@@ -270,21 +275,22 @@ workflows:
         timeout: 1200
         title: UI Smoketest3
         inputs:
-        - destination: platform=iOS Simulator,name=iPhone 15,OS=17.0.1
+        - destination: platform=iOS Simulator,name=iPhone 15,OS=17.2
         - xcodebuild_options: '"-derivedDataPath" "/Users/vagrant/git/DerivedData"
             "COMPILER_INDEX_STORE_ENABLE=NO" "CODE_SIGN_IDENTITY=" 
             "CODE_SIGNING_REQUIRED=NO" "CODE_SIGNING_ALLOWED=NO"'
-        - xctestrun: "Users/vagrant/git/DerivedData/Build/Products/Fennec_Smoketest3_iphonesimulator17.0-arm64.xctestrun"
+        - xctestrun: "Users/vagrant/git/DerivedData/Build/Products/Fennec_Smoketest3_iphonesimulator17.2-arm64.xctestrun"
     - deploy-to-bitrise-io@2.1.1:
         run_if: '{{getenv "RUN_UI_TESTS" | eq "Run_UI_Tests"}}'
         inputs:
         - pipeline_intermediate_files: '$BITRISE_XCRESULT_PATH:BITRISE_UITESTS_3_XCRESULT_PATH'
     meta:
       bitrise.io:
-        stack: osx-xcode-15.0.x
+        stack: osx-xcode-15.2.x
         machine_type_id: g2-m1.8core
   build_and_test_4_SmokeTest4:
     before_run:
+    - 0_detect_standalone_build
     - 1_git_clone_and_post_clone
     - Decision_to_run_UI_Tests
     steps:
@@ -315,18 +321,18 @@ workflows:
         timeout: 1200
         title: UI Smoketest4
         inputs:
-        - destination: platform=iOS Simulator,name=iPhone 15,OS=17.0.1
+        - destination: platform=iOS Simulator,name=iPhone 15,OS=17.2
         - xcodebuild_options: '"-derivedDataPath" "/Users/vagrant/git/DerivedData"
             "COMPILER_INDEX_STORE_ENABLE=NO" "CODE_SIGN_IDENTITY=" 
             "CODE_SIGNING_REQUIRED=NO" "CODE_SIGNING_ALLOWED=NO"'
-        - xctestrun: "Users/vagrant/git/DerivedData/Build/Products/Fennec_Smoketest4_iphonesimulator17.0-arm64.xctestrun"
+        - xctestrun: "Users/vagrant/git/DerivedData/Build/Products/Fennec_Smoketest4_iphonesimulator17.2-arm64.xctestrun"
     - deploy-to-bitrise-io@2.1.1:
         run_if: '{{getenv "RUN_UI_TESTS" | eq "Run_UI_Tests"}}'
         inputs:
         - pipeline_intermediate_files: '$BITRISE_XCRESULT_PATH:BITRISE_UITESTS_4_XCRESULT_PATH'
     meta:
       bitrise.io:
-        stack: osx-xcode-15.0.x
+        stack: osx-xcode-15.2.x
         machine_type_id: g2-m1.8core
   send_slack_notification:
     steps:
@@ -353,6 +359,38 @@ workflows:
             App|${BITRISE_APP_URL}
             #mobile-testeng|https://mozilla.slack.com/archives/C02KDDS9QM9
             Mana|https://mana.mozilla.org/wiki/display/MTE/Mobile+Test+Engineering
+  0_detect_standalone_build:
+    steps:
+    - script@1:
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -e
+
+            # ANSI color codes
+            RED='\033[31;1m'
+            CYAN='\033[36;1m'
+            GREEN='\033[32;1m'
+            NC='\033[0m'        # No Color (resets color to default)
+
+            # Check if $BITRISEIO_PIPELINE_ID is unset or empty
+            # If so, this is a standalone build and we need to fail it
+            if [ -z "$BITRISEIO_PIPELINE_ID" ]; then
+                printf "\n${RED}Error: BITRISEIO_PIPELINE_ID is not set.${NC}\n\
+                This means you have triggered a build stage or workflow individually, instead of the entire pipeline.\n\n\
+                The current build workflow is: ${RED}$BITRISE_TRIGGERED_WORKFLOW_TITLE${NC}, but needs to be run in ${RED}pipeline_multiple_shards${NC}.\n\n\
+                To trigger a pipeline rebuild in its entirety, please do the following:\n\n\
+                    ${CYAN}1. Select your last failed build for 'pipeline_multiple_shards'.\n\
+                    ${CYAN}2. Click the 'Rebuild' button dropdown icon located in the top right of the page.\n\
+                    ${CYAN}3. From the dropdown menu, select 'Rebuild entire Pipeline'.\n\
+                    ${CYAN}4. If no dropdown menu is present, you are looking at a standalone build\n\
+                       ${CYAN}and need to select the initial Github pipeline triggered by the PR.${NC}\n\n\
+                If you are still having issues, please contact ${GREEN}#mobile-testeng${NC} on Slack.\n"
+                exit 1  # Exit with a failure status
+            else
+                echo "BITRISEIO_PIPELINE_ID is set to $BITRISEIO_PIPELINE_ID"
+            fi
+        title: Detect standalone build
   1_git_clone_and_post_clone:
     steps:
     - activate-ssh-key@4:
@@ -381,7 +419,7 @@ workflows:
 
             echo "Adding com.apple.developer.web-browser to entitlements"
 
-            /usr/libexec/PlistBuddy -c "Add :com.apple.developer.web-browser bool true" Client/Entitlements/FennecApplication.entitlements
+            /usr/libexec/PlistBuddy -c "Add :com.apple.developer.web-browser bool true" firefox-ios/Client/Entitlements/FennecApplication.entitlements
     - cache-pull@2.1: {}
   2_certificate_and_profile:
     steps:
@@ -392,7 +430,7 @@ workflows:
              #!/usr/bin/env bash
              set -e
              set -x
-             cd Client.xcodeproj
+             cd firefox-ios/Client.xcodeproj
              sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = "iPhone Developer"/' project.pbxproj
              cd -
         title: Set xcodeproj code_sign_identity to iPhone Developer
@@ -541,13 +579,14 @@ workflows:
             #   taskcluster/* -> matches all files in the taskcluster directory
             #
             # Features tested outside bitrise
-            #   Sync*/* -> matches all files in the Sync,SyncIntegrationTests,SyncTelemetry directories
-            #   L10nSnapshotTests/* -> matches all files in the L10nSnapshotTests directory
+            #   Sync*/* -> matches all files in the Sync, SyncTelemetry
+            #   firefox-ios/firefox-ios-tests/Tests/Sync*/* -> matches all files in SyncIntegrationTests directories
+            #   firefox-ios/firefox-ios-tests/Tests/L10nSnapshotTests/* -> matches all files in the L10nSnapshotTests directory
             #
             # Test Helpers
             #   test-fixtures/.py$ -> matches all files whose file extension begin with 'py'
 
-            DO_NOT_RUN_TESTS='^(.*[^bitrise]\.y[^/]*$|.*\.sh$|.*\.md$|.*\.lproj/.*|Sync*/*|fastlane/*|taskcluster/*|L10nSnapshotTests/*|test-fixtures/.*.py$)'
+            DO_NOT_RUN_TESTS='^(.*[^bitrise]\.y[^/]*$|.*\.sh$|.*\.md$|.*\.lproj/.*|Sync*/*|firefox-ios/firefox-ios-tests/Tests/Sync*/*|fastlane/*|taskcluster/*|firefox-ios/firefox-ios-tests/Tests/L10nSnapshotTests/*|test-fixtures/.*.py$)'
 
             # Pass the FILES_CHANGED to grep to find any matches for the regex DO_NOT_RUN_TESTS
             # -v inverts the filtered results, returning any files not filtered by the regex
@@ -639,7 +678,7 @@ workflows:
             set -e
             set -x
 
-            cd Client.xcodeproj
+            cd firefox-ios/Client.xcodeproj
             sed -i '' 's/"Fennec Development"/"Bitrise Firefox iOS Dev"/' project.pbxproj
             sed -i '' 's/Fennec ShareTo Development/Bitrise Firefox iOS Dev - Share To/' project.pbxproj
             sed -i '' 's/Fennec WidgetKit Development/Bitrise Firefox iOS Dev - WidgetKit/' project.pbxproj
@@ -671,7 +710,7 @@ workflows:
         run_if: '{{getenv "NEW_XCODE_VERSION" | eq "New_Version_Found" | or (getenv "RUN_ALL_STEPS" | eq "Run_All_Steps")}}'
         inputs:
         - scheme: Fennec
-        - destination: platform=iOS Simulator,name=iPhone 15,OS=17.0.1
+        - destination: platform=iOS Simulator,name=iPhone 15,OS=17.2
     - deploy-to-bitrise-io@2.2: {}
     - cache-push@2.4: {}
     - slack@3.1:
@@ -684,7 +723,7 @@ workflows:
     description: This Workflow is to build the app using latest xcode available in Bitrise
     meta:
       bitrise.io:
-        stack: osx-xcode-15.0.x
+        stack: osx-xcode-15.2.x
         machine_type_id: g2-m1.8core
 
   L10nBuild:
@@ -763,9 +802,10 @@ workflows:
             set -e
             # debug log
             set -x
-            fastlane -v
+            gem install fastlane -v 2.216.0
+            fastlane -version
 
-            ./l10n-screenshots.sh en-US
+            ./firefox-ios/l10n-screenshots.sh en-US
         title: Generate screenshots
     - deploy-to-bitrise-io@1.10:
         inputs:
@@ -784,7 +824,7 @@ workflows:
       This Workflow is to run L10n tests in one locale and then share the bundle with the rest of the builds
     meta:
       bitrise.io:
-        stack: osx-xcode-15.0.x
+        stack: osx-xcode-15.2.x
         machine_type_id: g2-m1.8core
 
   L10nScreenshotsTests:
@@ -825,8 +865,9 @@ workflows:
             set -x
             # workaround until 2.187 version is installed. Error with 2.186
             # fastlane update_fastlane
-
-            ./l10n-screenshots.sh --test-without-building $MOZ_LOCALES
+            gem install fastlane -v 2.216.0
+            fastlane -version
+            ./firefox-ios/l10n-screenshots.sh --test-without-building $MOZ_LOCALES
 
             mkdir -p artifacts
 
@@ -846,7 +887,7 @@ workflows:
       This Workflow is to run L10n tests for all locales
     meta:
       bitrise.io:
-        stack: osx-xcode-15.0.x
+        stack: osx-xcode-15.2.x
         machine_type_id: g2-m1.8core
   SPM_Deploy_Prod_Beta:
     steps:
@@ -861,7 +902,7 @@ workflows:
             set -e
             set -x
 
-            cd Client.xcodeproj
+            cd firefox-ios/Client.xcodeproj
             sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = "iPhone Distribution"/' project.pbxproj
             cd -
         title: Set xcodeproj code_sign_identity
@@ -879,23 +920,23 @@ workflows:
     - set-xcode-build-number@1:
         inputs:
         - build_short_version_string: "$BITRISE_RELEASE_VERSION"
-        - plist_path: Client/Info.plist
+        - plist_path: firefox-ios/Client/Info.plist
     - set-xcode-build-number@1:
         inputs:
         - build_short_version_string: "$BITRISE_RELEASE_VERSION"
-        - plist_path: Extensions/NotificationService/Info.plist
+        - plist_path: firefox-ios/Extensions/NotificationService/Info.plist
     - set-xcode-build-number@1:
         inputs:
         - build_short_version_string: "$BITRISE_RELEASE_VERSION"
-        - plist_path: Extensions/ShareTo/Info.plist
+        - plist_path: firefox-ios/Extensions/ShareTo/Info.plist
     - set-xcode-build-number@1:
         inputs:
         - build_short_version_string: "$BITRISE_RELEASE_VERSION"
-        - plist_path: WidgetKit/Info.plist
+        - plist_path: firefox-ios/WidgetKit/Info.plist
     - set-xcode-build-number@1:
         inputs:
         - build_short_version_string: "$BITRISE_RELEASE_VERSION"
-        - plist_path: CredentialProvider/Info.plist
+        - plist_path: firefox-ios/CredentialProvider/Info.plist
     - script@1:
         inputs:
         - content: |-
@@ -908,10 +949,11 @@ workflows:
             # write your script here
 
             echo "Setting Nimbus variables"
-            /usr/libexec/PlistBuddy -c "Set NimbusURL $NIMBUS_URL" "Client/Info.plist"
+            /usr/libexec/PlistBuddy -c "Set NimbusURL $NIMBUS_URL" "firefox-ios/Client/Info.plist"
         title: Nimbus Variable Setup
     - xcode-archive@4.0:
         inputs:
+        - project_path: firefox-ios/Client.xcodeproj
         - compile_bitcode: 'no'
         - upload_bitcode: 'no'
         - team_id: 43AQ936H96
@@ -933,7 +975,7 @@ workflows:
         - content: |-
             #!/usr/bin/env bash
             set -x
-            ThirdParty/sentry-cli --auth-token "$SENTRY_AUTH_TOKEN" upload-dif \
+            firefox-ios/ThirdParty/sentry-cli --auth-token "$SENTRY_AUTH_TOKEN" upload-dif \
               --org mozilla --project firefox-ios "$BITRISE_DSYM_DIR_PATH"
     - script@1:
         inputs:
@@ -949,6 +991,7 @@ workflows:
         - webhook_url: "$WEBHOOK_SLACK_TOKEN"
     - xcode-archive@4.0:
         inputs:
+        - project_path: firefox-ios/Client.xcodeproj
         - compile_bitcode: 'no'
         - upload_bitcode: 'no'
         - team_id: 43AQ936H96
@@ -972,7 +1015,7 @@ workflows:
     description: This step is to build, archive and upload Firefox Release and Beta
     meta:
       bitrise.io:
-        stack: osx-xcode-15.0.x
+        stack: osx-xcode-15.2.x
         machine_type_id: g2-m1.8core
   SPM_Deploy_Beta_Only:
     steps:
@@ -987,7 +1030,7 @@ workflows:
             set -e
             set -x
 
-            cd Client.xcodeproj
+            cd firefox-ios/Client.xcodeproj
             sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = "iPhone Distribution"/' project.pbxproj
             cd -
         title: Set xcodeproj code_sign_identity
@@ -1005,23 +1048,23 @@ workflows:
     - set-xcode-build-number@1:
         inputs:
         - build_short_version_string: "$BITRISE_BETA_VERSION"
-        - plist_path: Client/Info.plist
+        - plist_path: firefox-ios/Client/Info.plist
     - set-xcode-build-number@1:
         inputs:
         - build_short_version_string: "$BITRISE_BETA_VERSION"
-        - plist_path: Extensions/NotificationService/Info.plist
+        - plist_path: firefox-ios/Extensions/NotificationService/Info.plist
     - set-xcode-build-number@1:
         inputs:
         - build_short_version_string: "$BITRISE_BETA_VERSION"
-        - plist_path: Extensions/ShareTo/Info.plist
+        - plist_path: firefox-ios/Extensions/ShareTo/Info.plist
     - set-xcode-build-number@1:
         inputs:
         - build_short_version_string: "$BITRISE_BETA_VERSION"
-        - plist_path: WidgetKit/Info.plist
+        - plist_path: firefox-ios/WidgetKit/Info.plist
     - set-xcode-build-number@1:
         inputs:
         - build_short_version_string: "$BITRISE_BETA_VERSION"
-        - plist_path: CredentialProvider/Info.plist
+        - plist_path: firefox-ios/CredentialProvider/Info.plist
     - script@1:
         inputs:
         - content: |-
@@ -1034,10 +1077,11 @@ workflows:
             # write your script here
 
             echo "Setting Nimbus variables"
-            /usr/libexec/PlistBuddy -c "Set NimbusURL $NIMBUS_URL" "Client/Info.plist"
+            /usr/libexec/PlistBuddy -c "Set NimbusURL $NIMBUS_URL" "firefox-ios/Client/Info.plist"
         title: Nimbus Variable Setup
     - xcode-archive@4.0:
         inputs:
+        - project_path: firefox-ios/Client.xcodeproj
         - compile_bitcode: 'no'
         - upload_bitcode: 'no'
         - team_id: 43AQ936H96
@@ -1060,7 +1104,7 @@ workflows:
         - content: |-
             #!/usr/bin/env bash
             set -x
-            ThirdParty/sentry-cli --auth-token "$SENTRY_AUTH_TOKEN" upload-dif \
+            firefox-ios/ThirdParty/sentry-cli --auth-token "$SENTRY_AUTH_TOKEN" upload-dif \
               --org mozilla --project firefox-ios "$BITRISE_DSYM_DIR_PATH"
     envs:
     - opts:
@@ -1069,7 +1113,7 @@ workflows:
     description: This step is to build, archive and upload Firefox Release and Beta
     meta:
       bitrise.io:
-        stack: osx-xcode-15.0.x
+        stack: osx-xcode-15.2.x
         machine_type_id: g2-m1.8core
   SPM_Nightly_Beta_Only:
     steps:
@@ -1084,7 +1128,7 @@ workflows:
             set -e
             set -x
 
-            cd Client.xcodeproj
+            cd firefox-ios/Client.xcodeproj
             sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = "iPhone Distribution"/' project.pbxproj
             cd -
         title: Set xcodeproj code_sign_identity
@@ -1102,23 +1146,23 @@ workflows:
     - set-xcode-build-number@1:
         inputs:
         - build_short_version_string: "$BITRISE_NIGHTLY_VERSION"
-        - plist_path: Client/Info.plist
+        - plist_path: firefox-ios/Client/Info.plist
     - set-xcode-build-number@1:
         inputs:
         - build_short_version_string: "$BITRISE_NIGHTLY_VERSION"
-        - plist_path: Extensions/NotificationService/Info.plist
+        - plist_path: firefox-ios/Extensions/NotificationService/Info.plist
     - set-xcode-build-number@1:
         inputs:
         - build_short_version_string: "$BITRISE_NIGHTLY_VERSION"
-        - plist_path: Extensions/ShareTo/Info.plist
+        - plist_path: firefox-ios/Extensions/ShareTo/Info.plist
     - set-xcode-build-number@1:
         inputs:
         - build_short_version_string: "$BITRISE_NIGHTLY_VERSION"
-        - plist_path: WidgetKit/Info.plist
+        - plist_path: firefox-ios/WidgetKit/Info.plist
     - set-xcode-build-number@1:
         inputs:
         - build_short_version_string: "$BITRISE_NIGHTLY_VERSION"
-        - plist_path: CredentialProvider/Info.plist
+        - plist_path: firefox-ios/CredentialProvider/Info.plist
     - script@1:
         inputs:
         - content: |-
@@ -1131,10 +1175,11 @@ workflows:
             # write your script here
 
             echo "Setting Nimbus variables"
-            /usr/libexec/PlistBuddy -c "Set NimbusURL $NIMBUS_URL" "Client/Info.plist"
+            /usr/libexec/PlistBuddy -c "Set NimbusURL $NIMBUS_URL" "firefox-ios/Client/Info.plist"
         title: Nimbus Variable Setup
     - xcode-archive@4.0:
         inputs:
+        - project_path: firefox-ios/Client.xcodeproj
         - compile_bitcode: 'no'
         - upload_bitcode: 'no'
         - team_id: 43AQ936H96
@@ -1158,7 +1203,7 @@ workflows:
         - content: |-
             #!/usr/bin/env bash
             set -x
-            ThirdParty/sentry-cli --auth-token "$SENTRY_AUTH_TOKEN" upload-dif \
+            firefox-ios/ThirdParty/sentry-cli --auth-token "$SENTRY_AUTH_TOKEN" upload-dif \
               --org mozilla --project firefox-ios "$BITRISE_DSYM_DIR_PATH"
     envs:
     - opts:
@@ -1167,7 +1212,7 @@ workflows:
     description: This step is to build, archive and upload Firefox Release and Beta
     meta:
       bitrise.io:
-        stack: osx-xcode-15.0.x
+        stack: osx-xcode-15.2.x
         machine_type_id: g2-m1.8core
   Bitrise_Performance_Test:
     steps:
@@ -1175,8 +1220,9 @@ workflows:
         is_always_run: true
     - xcode-test@4.5:
         inputs:
+        - project_path: firefox-ios/Client.xcodeproj
         - scheme: Fennec
-        - destination: platform=iOS Simulator,name=iPhone 15,OS=17.0.1
+        - destination: platform=iOS Simulator,name=iPhone 15,OS=17.2
         - test_plan: PerformanceTestPlan   
     - script@1.1:
         is_always_run: true
@@ -1213,7 +1259,7 @@ workflows:
     - deploy-to-bitrise-io@1.9: {}
     meta:
       bitrise.io:
-        stack: osx-xcode-15.0.x
+        stack: osx-xcode-15.2.x
         machine_type_id: g2-m1.8core
     before_run:
     - 1_git_clone_and_post_clone
@@ -1227,6 +1273,7 @@ workflows:
     steps:
     - xcode-archive@4.7.2:
         inputs:
+        - project_path: firefox-ios/Client.xcodeproj
         - compile_bitcode: 'no'
         - upload_bitcode: 'no'
         - team_id: 9G8J6YA743
@@ -1268,6 +1315,8 @@ workflows:
         - content: |-
             #!/usr/bin/env bash
             set -ex
+            set -o pipefail
+
             curl -o /tmp/key-file.json $BITRISEIO_GOOGLE_APPLICATION_CREDENTIALS_URL 
             $HOME/sdk/google-cloud-sdk/bin/gcloud version
             $HOME/sdk/google-cloud-sdk/bin/gcloud auth activate-service-account -q --key-file /tmp/key-file.json
@@ -1280,10 +1329,17 @@ workflows:
                 --results-bucket=firefox_ios_test_artifacts \
                 --no-record-video \
                 --client-details=matrixLabel="Bitrise" \
-                --quiet \
-                2>&1 | tee /dev/stdout)
+                --quiet 2>&1)
             
-            GCLOUD_EXITCODE=${PIPESTATUS[0]}
+            GCLOUD_EXITCODE=$? # this will get the right-most command from the gcloud subshell
+            echo "GCLOUD_EXITCODE: $GCLOUD_EXITCODE"
+
+            # There is a chance the gcloud cli returns a custom array of exit codes, so we will need
+            #    to parse the output to get the exit codes and potentially trigger our own failure
+            # In the case of an Inconclusive Test, we still haven't confirmed what stand-in exit code
+            #   is returned, so we will need to update this script once we know what it is.
+            # We also don't know what order the exit codes will be returned in, so we will need to
+            #   parse the output to get the exit codes and then assign them to variables.
 
             envman add --key GCLOUD_EXIT_CODE --value "$GCLOUD_EXITCODE"
             MATRIX_WEBLINK=$(echo "$GCLOUD_OUTPUT" | grep 'https://console.firebase.google.com/project' | awk -F '[][]' '{print $2}' | head -n 1)
@@ -1293,7 +1349,8 @@ workflows:
         inputs:
         - content: |-
             #!/usr/bin/env bash
-            if [ "${GCLOUD_EXIT_CODE}" -ne 0 ]; then
+            # unpack GLCOUD_EXIT_CODE from string to int, if gcloud returns string instead of int for exit code
+            if [ $((GCLOUD_EXIT_CODE)) -ne 0 ]; then
                 SLACK_MESSAGE_PRETEXT="*Firefox-iOS* :firefox: *Archive/Robo Test* :x:"
             else 
                 SLACK_MESSAGE_PRETEXT="*Firefox-iOS* :firefox: *Archive/Robo Test* :white_check_mark:"
@@ -1328,6 +1385,7 @@ workflows:
     steps:
     - xcode-archive@4.7.2:
         inputs:
+        - project_path: firefox-ios/Client.xcodeproj
         - compile_bitcode: 'no'
         - upload_bitcode: 'no'
         - team_id: 9G8J6YA743
@@ -1347,7 +1405,7 @@ workflows:
             set -euxo pipefail
 
             DERIVED_DATA_DIR="/Users/vagrant/git/DerivedData"
-            PROJECT="/Users/vagrant/git/Client.xcodeproj"
+            PROJECT="/Users/vagrant/git/firefox-ios/Client.xcodeproj"
             SCHEME="Fennec_Enterprise"
             SDK="iphoneos"
             DESTINATION="generic/platform=iOS"
@@ -1356,7 +1414,7 @@ workflows:
 
             echo "-- build-for-testing --"
             mkdir DerivedData
-            xcodebuild -resolvePackageDependencies -onlyUsePackageVersionsFromResolvedFile
+            xcodebuild -resolvePackageDependencies -onlyUsePackageVersionsFromResolvedFile -project firefox-ios/Client.xcodeproj
             xcodebuild build-for-testing -project "$PROJECT" \
                 -scheme "$SCHEME" \
                 -sdk "$SDK" \
@@ -1524,6 +1582,7 @@ workflows:
             sed 's/.*=//;s/'\''/"/g' data.txt > test.json
             cat test.json
             python3 perfTestTransform.py
+
 app:
   envs:
   - opts:
@@ -1537,14 +1596,14 @@ app:
     BITRISE_NIGHTLY_VERSION: '9000'
   - opts:
       is_expand: false
-    BITRISE_RELEASE_VERSION: '121.0'
+    BITRISE_RELEASE_VERSION: '124.0'
   - opts:
       is_expand: false
-    BITRISE_BETA_VERSION: '121.0'
+    BITRISE_BETA_VERSION: '124.0'
 
 meta:
   bitrise.io:
-    stack: osx-xcode-15.0.x
+    stack: osx-xcode-15.2.x
     machine_type_id: g2-m1.8core
 
 trigger_map:
@@ -1552,7 +1611,7 @@ trigger_map:
   pipeline: pipeline_multiple_shards
 - push_branch: epic-branch/*
   pipeline: pipeline_multiple_shards
-- push_branch: release/v119
+- push_branch: release/v124
   pipeline: pipeline_multiple_shards
 - pull_request_target_branch: main
   pipeline: pipeline_multiple_shards
