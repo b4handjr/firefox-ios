@@ -17,7 +17,7 @@ black = "*"
 pytest-html = "==3.2.0"
 pytest-variables = "*"
 pyyaml = "*"
-typing_extensions = "*"
-
+typing-extensions = "*"
+pytest-rerunfailures = "*"
 
 [dev-packages]

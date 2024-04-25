@@ -9,6 +9,17 @@
     }
   ],
   "defaultOptions" : {
+    "environmentVariableEntries" : [
+      {
+        "key" : "EXPERIMENT_NAME",
+        "value" : "${EXPERIMENT_NAME}"
+      }
+    ],
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Client.xcodeproj",
+      "identifier" : "F84B21BD1A090F8100AAB793",
+      "name" : "Client"
+    },
     "testTimeoutsEnabled" : true
   },
   "testTargets" : [

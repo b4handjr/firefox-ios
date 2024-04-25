@@ -6,11 +6,12 @@ import XCTest
 
 final class ExperimentIntegrationTests: BaseTestCase {
     var secretMenu = false
+    var experimentName = ProcessInfo.processInfo.environment["EXPERIMENT_NAME"] ?? "None"
 
     override func setUpApp() {
         app.activate()
         let closeButton = app.buttons["CloseButton"]
-        if closeButton.exists {
+        if closeButton.waitForExistence(timeout: 30) {
             closeButton.tap()
         }
         super.setUpScreenGraph()
@@ -57,7 +58,7 @@ final class ExperimentIntegrationTests: BaseTestCase {
         enableSecretMenu()
 
         // match json experiment name
-        XCTAssertTrue(checkExperimentEnrollment(experimentName: "Viewpoint"))
+        XCTAssertTrue(checkExperimentEnrollment(experimentName: experimentName))
     }
 
     func testMessageNavigatesCorrectly() throws {
@@ -132,6 +133,6 @@ final class ExperimentIntegrationTests: BaseTestCase {
         )
 
         studiesToggle.element.tap()
-        XCTAssertFalse(checkExperimentEnrollment(experimentName: "Viewpoint"))
+        XCTAssertFalse(checkExperimentEnrollment(experimentName: experimentName))
     }
 }
