@@ -15,6 +15,7 @@ final class ExperimentIntegrationTests: BaseTestCase {
             closeButton.tap()
         }
         super.setUpScreenGraph()
+        UIView.setAnimationsEnabled(false) // IMPORTANT
     }
 
     func enableSecretMenu() {
@@ -51,6 +52,13 @@ final class ExperimentIntegrationTests: BaseTestCase {
         }
     }
 
+    //func testAppStartup() throws {
+    //    setUpLaunchArguments()
+    //    setUpScreenGraph()
+    //    app.launch()
+    //    return
+    //}
+    
     func testVerifyExperimentEnrolled() throws {
         navigator.goto(SettingsScreen)
 

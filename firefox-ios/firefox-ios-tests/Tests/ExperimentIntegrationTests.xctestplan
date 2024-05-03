@@ -9,7 +9,28 @@
     }
   ],
   "defaultOptions" : {
+    "commandLineArgumentEntries" : [
+      {
+        "argument" : "FIREFOX_SKIP_INTRO"
+      },
+      {
+        "argument" : "FIREFOX_TEST"
+      },
+      {
+        "argument" : "FIREFOX_CLEAR_PROFILE"
+      },
+      {
+        "argument" : "\"GCDWEBSERVER_PORT:7777\""
+      },
+      {
+        "argument" : "DISABLE_ANIMATIONS"
+      }
+    ],
     "environmentVariableEntries" : [
+      {
+        "key" : "WEBSERVER_PORT",
+        "value" : "7777"
+      },
       {
         "key" : "EXPERIMENT_NAME",
         "value" : "${EXPERIMENT_NAME}"
@@ -70,7 +91,6 @@
         "ReadingListTests",
         "ScreenGraphTest",
         "SearchSettingsUITests",
-        "SearchTests",
         "SettingsTests",
         "SiteLoadTest",
         "SyncUITests",

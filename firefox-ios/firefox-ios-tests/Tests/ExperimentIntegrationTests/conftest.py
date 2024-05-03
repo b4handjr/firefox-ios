@@ -52,6 +52,10 @@ def pytest_runtest_setup(item):
             pytest.skip("test does not match feature name")
 
 
+@pytest.fixture(name="nimbus_cli_args")
+def fixture_nimbus_cli_args():
+    return "FIREFOX_SKIP_INTRO FIREFOX_TEST DISABLE_ANIMATIONS 'GCDWEBSERVER_PORT:7777'"
+
 @pytest.fixture(name="experiment_branch")
 def fixture_experiment_branch(request):
     return request.config.getoption("--experiment-branch")
@@ -122,9 +126,9 @@ def fixture_device_control(xcrun):
     
 
 @pytest.fixture(name="start_app")
-def fixture_start_app():
+def fixture_start_app(nimbus_cli_args):
     def _():
-        command = f"nimbus-cli --app firefox_ios --channel developer open"
+        command = f"nimbus-cli --app firefox_ios --channel developer open -- {nimbus_cli_args}"
         out = subprocess.check_output(
             command,
             cwd=here.parent,
@@ -259,11 +263,11 @@ def fixture_check_ping_for_experiment(experiment_slug, variables):
 
 
 @pytest.fixture(name="setup_experiment")
-def setup_experiment(experiment_slug, json_data, request, experiment_branch):
+def setup_experiment(experiment_slug, json_data, request, experiment_branch, nimbus_cli_args):
     def _setup_experiment():
         logging.info(f"Testing experiment {experiment_slug}, BRANCH: {experiment_branch}")
-        command = f"nimbus-cli --app firefox_ios --channel developer enroll {experiment_slug} --branch {experiment_branch} --file {json_data} --reset-app"
-        logging.debug(f"Nimbus CLI Command: {command}\n")
+        command = f"nimbus-cli --app firefox_ios --channel developer enroll {experiment_slug} --branch {experiment_branch} --file {json_data} --reset-app -- {nimbus_cli_args}"
+        logging.info(f"Nimbus CLI Command: {command}\n")
         out = subprocess.check_output(
             command,
             cwd=os.path.join(here, os.pardir),

@@ -8,7 +8,7 @@ import XCTest
 
 let page1 = "http://localhost:\(serverPort)/test-fixture/find-in-page-test.html"
 let page2 = "http://localhost:\(serverPort)/test-fixture/test-example.html"
-let serverPort = Int.random(in: 1025..<65000)
+let serverPort = ProcessInfo.processInfo.environment["WEBSERVER_PORT"] ?? "\(Int.random(in: 1025..<65000))"
 
 func path(forTestPage page: String) -> String {
     return "http://localhost:\(serverPort)/test-fixture/\(page)"
@@ -66,6 +66,14 @@ class BaseTestCase: XCTestCase {
     }
 
     func setUpApp() {
+        setUpLaunchArguments()
+        if let value = ProcessInfo.processInfo.environment["EXPERIMENT_NAME"] {
+            app.activate()
+        }
+        app.launch()
+    }
+
+    func setUpLaunchArguments() {
         if !launchArguments.contains("FIREFOX_PERFORMANCE_TEST") {
             app.launchArguments = [LaunchArguments.Test] + launchArguments
         } else {
