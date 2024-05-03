@@ -11,7 +11,7 @@ final class ExperimentIntegrationTests: BaseTestCase {
     override func setUpApp() {
         app.activate()
         let closeButton = app.buttons["CloseButton"]
-        if closeButton.waitForExistence(timeout: 30) {
+        if closeButton.waitForExistence(timeout: TIMEOUT_LONG) {
             closeButton.tap()
         }
         super.setUpScreenGraph()
@@ -51,13 +51,6 @@ final class ExperimentIntegrationTests: BaseTestCase {
             return false
         }
     }
-
-    //func testAppStartup() throws {
-    //    setUpLaunchArguments()
-    //    setUpScreenGraph()
-    //    app.launch()
-    //    return
-    //}
     
     func testVerifyExperimentEnrolled() throws {
         navigator.goto(SettingsScreen)
@@ -74,7 +67,7 @@ final class ExperimentIntegrationTests: BaseTestCase {
             NSPredicate(format: "identifier CONTAINS 'takeSurveyButton'")
         )
 
-        wait(forElement: surveyLink.element, timeout: 15)
+        wait(forElement: surveyLink.element, timeout: TIMEOUT_LONG)
         surveyLink.element.tap()
         mozWaitForValueContains(app.textFields["url"], value: "survey")
     }
@@ -84,7 +77,7 @@ final class ExperimentIntegrationTests: BaseTestCase {
             NSPredicate(format: "identifier CONTAINS 'dismissSurveyButton'")
         )
 
-        wait(forElement: dismissLink.element, timeout: 15)
+        wait(forElement: dismissLink.element, timeout: TIMEOUT_LONG)
         dismissLink.element.tap()
 
         navigator.goto(NewTabScreen)
@@ -104,7 +97,7 @@ final class ExperimentIntegrationTests: BaseTestCase {
             NSPredicate(format: "identifier CONTAINS 'dismissSurveyButton'")
         )
 
-        wait(forElement: surveyLink.element, timeout: 15)
+        wait(forElement: surveyLink.element, timeout: TIMEOUT_LONG)
         surveyLink.element.tap()
         mozWaitForValueContains(app.textFields["url"], value: "survey")
     }
@@ -114,7 +107,7 @@ final class ExperimentIntegrationTests: BaseTestCase {
             NSPredicate(format: "identifier CONTAINS 'HomeTabBanner.goToSettingsButton'")
         )
 
-        wait(forElement: surveyLink.element, timeout: 15)
+        wait(forElement: surveyLink.element, timeout: TIMEOUT_LONG)
         surveyLink.element.tap()
         mozWaitForValueContains(app.textFields["url"], value: "survey")
     }
@@ -124,7 +117,7 @@ final class ExperimentIntegrationTests: BaseTestCase {
             NSPredicate(format: "label CONTAINS 'Close'")
         )
 
-        wait(forElement: surveyLink.element, timeout: 15)
+        wait(forElement: surveyLink.element, timeout: TIMEOUT_LONG)
         surveyLink.element.tap()
 
         navigator.goto(NewTabScreen)
