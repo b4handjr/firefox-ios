@@ -9,6 +9,7 @@
     }
   ],
   "defaultOptions" : {
+    "codeCoverage" : false,
     "commandLineArgumentEntries" : [
       {
         "argument" : "FIREFOX_SKIP_INTRO"
@@ -49,7 +50,6 @@
         "ActivityStreamTest",
         "AuthenticationTest",
         "BaseTestCase",
-        "BookmarksTests",
         "BrowsingPDFTests",
         "ClipBoardTests",
         "CreditCardsTests",
@@ -77,8 +77,6 @@
         "JumpBackInTests",
         "LibraryTestsIpad",
         "LoginTest",
-        "NavigationTest",
-        "NewTabSettingsTest",
         "NightModeTests",
         "OnboardingTests",
         "OpeningScreenTests",
@@ -97,13 +95,10 @@
         "TabCounterTests",
         "ThirdPartySearchTest",
         "ToolbarMenuTests",
-        "ToolbarTests",
-        "TopTabsTest",
         "TopTabsTestIpad",
         "TopTabsTestIphone",
         "TrackingProtectionTests",
         "URLValidationTests",
-        "UrlBarTests",
         "WhatsNewTest"
       ],
       "target" : {
