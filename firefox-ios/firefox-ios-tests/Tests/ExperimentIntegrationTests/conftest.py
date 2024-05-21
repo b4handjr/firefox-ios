@@ -278,3 +278,5 @@ def setup_experiment(experiment_slug, json_data, request, experiment_branch, nim
         
 
     return _setup_experiment
+
+# boot device xcrun simctl boot "iPhone 15 Pro Mox"

@@ -61,6 +61,8 @@ def generate_smoke_tests(tests_names=None):
     for test in tests_names[1:]:
         if "BaseTestCase" in test:
             continue
+        if "test" not in test:
+            continue
         test_name = test.replace("(", "").replace(")", "")
         tests.append(
             f"""
